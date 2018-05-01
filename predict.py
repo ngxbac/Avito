@@ -19,7 +19,7 @@ import json
 def predict_fold(config, n_folds, X_test, token_len):
     test_dataset = d.NumpyDataset(X_test, None)
     test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False)
-
+    preds_all = []
     for fold in range(n_folds):
         print("[+] Predict fold: {}".format(fold))
         embedding_size, data_dim = config["embedding_size"], X_test.shape[1]
@@ -59,9 +59,15 @@ def predict_fold(config, n_folds, X_test, token_len):
             preds += output.data.cpu().numpy().tolist()
 
         preds = [p[0] for p in preds]
+        preds_all.append(preds)
         submission = pd.read_csv(config["sample_submission"])
         submission['deal_probability'] = preds
         submission.to_csv(f"submission_{model_name}_{fold}.csv", index=False)
+    preds_all = np.array(preds_all)
+    preds_avg = np.mean(preds_all, axis=0)
+    submission = pd.read_csv(config["sample_submission"])
+    submission['deal_probability'] = preds_avg
+    submission.to_csv(f"submission_{model_name}_avg.csv", index=False)
 
 
 def predict_one(config, X_test, token_len):
