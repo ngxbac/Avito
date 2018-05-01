@@ -9,5 +9,6 @@
   "embedding_size": 8,
   "model_name": "avitor",
   "patience": 5,
+  "n_fold": 5,
   "resume": "ckp_best_avitor.pth.tar"
 }

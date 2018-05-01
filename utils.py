@@ -54,9 +54,9 @@ def train(epoch, loader: DataLoader, model: nn.Module, criterion: nn.Module, opt
         #                      "Loss {:.4f} ({:.4f}), ".format(
         #     epoch, losses.val, losses.avg
         # ))
-    print("Epoch train {}, "
-          "Loss {:.4f} ({:.4f})".format(
-        epoch, losses.val, losses.avg
+    print("[+] Epoch train {}, "
+          "Loss {:.4f}".format(
+        epoch, losses.avg
     ))
 
 
@@ -82,9 +82,9 @@ def test(epoch, test_loader, model, criterion):
             #     epoch, losses.val, losses.avg
             # ))
 
-        print("Epoch test {}, "
-              "Loss {:.4f} ({:.4f}) \n".format(
-            epoch, losses.val, losses.avg
+        print("[+] Epoch test {}, "
+              "{:.4f} \n".format(
+            epoch, losses.avg
         ))
 
         return losses.avg
