@@ -5,7 +5,9 @@ import numpy as np
 import os
 from tqdm import tqdm
 from sys import getsizeof
+from nltk.corpus import stopwords
 
+stopWords = stopwords.words('russian')
 
 all_columns = [
     "item_id", "user_id", "region", "city",
@@ -117,11 +119,15 @@ def title_features(train_df, test_df):
     from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
     from sklearn.decomposition import TruncatedSVD
 
+    ## Filling missing values ##
+    train_df["title"] = train_df["title"].fillna(" ", inplace=True)
+    test_df["title"] = test_df["title"].fillna(" ", inplace=True)
+
     train_df["title_nwords"] = train_df["title"].apply(lambda x: len(x.split()))
     test_df["title_nwords"] = test_df["title"].apply(lambda x: len(x.split()))
     extract_columns.append("title_nwords")
 
-    tfidf_vec = TfidfVectorizer(ngram_range=(1, 1))
+    tfidf_vec = TfidfVectorizer(max_features=100000, stop_words=stopWords)
     full_tfidf = tfidf_vec.fit_transform(train_df['title'].values.tolist() + test_df['title'].values.tolist())
     train_tfidf = tfidf_vec.transform(train_df['title'].values.tolist())
     test_tfidf = tfidf_vec.transform(test_df['title'].values.tolist())
@@ -148,8 +154,8 @@ def description_features(train_df, test_df):
     from sklearn.decomposition import TruncatedSVD
 
     ## Filling missing values ##
-    train_df["description"].fillna("NA", inplace=True)
-    test_df["description"].fillna("NA", inplace=True)
+    train_df["description"] = train_df["description"].fillna(" ", inplace=True)
+    test_df["description"] = test_df["description"].fillna(" ", inplace=True)
 
     train_df["description"] = train_df["description"].apply(lambda x: str(x))
     test_df["description"] = test_df["description"].apply(lambda x: str(x))
@@ -159,7 +165,7 @@ def description_features(train_df, test_df):
     extract_columns.append("desc_nwords")
 
     ### TFIDF Vectorizer ###
-    tfidf_vec = TfidfVectorizer(ngram_range=(1, 1), max_features=100000)
+    tfidf_vec = TfidfVectorizer(max_features=100000, stop_words=stopWords)
     full_tfidf = tfidf_vec.fit_transform(
         train_df['description'].values.tolist() + test_df['description'].values.tolist())
     train_tfidf = tfidf_vec.transform(train_df['description'].values.tolist())
@@ -181,6 +187,66 @@ def description_features(train_df, test_df):
     return train_df, test_df
 
 
+def extract_title_description_features(train_df, test_df):
+    from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+    from sklearn.decomposition import TruncatedSVD
+
+    tfidf = TfidfVectorizer(max_features=50000, stop_words=stopWords)
+    tfidf_title = TfidfVectorizer(max_features=50000, stop_words=stopWords)
+
+    train_df['description'] = train_df['description'].fillna(' ')
+    test_df['description'] = test_df['description'].fillna(' ')
+    train_df['title'] = train_df['title'].fillna(' ')
+    test_df['title'] = test_df['title'].fillna(' ')
+
+    train_df["description"] = train_df["description"].apply(lambda x: str(x))
+    test_df["description"] = test_df["description"].apply(lambda x: str(x))
+
+    train_df["title_nwords"] = train_df["title"].apply(lambda x: len(x.split()))
+    test_df["title_nwords"] = test_df["title"].apply(lambda x: len(x.split()))
+    extract_columns.append("title_nwords")
+
+    train_df["desc_nwords"] = train_df["description"].apply(lambda x: len(x.split()))
+    test_df["desc_nwords"] = test_df["description"].apply(lambda x: len(x.split()))
+    extract_columns.append("desc_nwords")
+
+
+    tfidf.fit(pd.concat([train_df['description'], test_df['description']]))
+    tfidf_title.fit(pd.concat([train_df['title'], test_df['title']]))
+
+    train_des_tfidf = tfidf.transform(train_df['description'])
+    test_des_tfidf = tfidf.transform(test_df['description'])
+
+    train_title_tfidf = tfidf.transform(train_df['title'])
+    test_title_tfidf = tfidf.transform(test_df['title'])
+
+    n_comp = 3
+    svd_obj = TruncatedSVD(n_components=n_comp, algorithm='arpack')
+    svd_obj.fit(tfidf.transform(pd.concat([train_df['description'], test_df['description']])))
+
+    svd_title = TruncatedSVD(n_components=n_comp, algorithm='arpack')
+    svd_title.fit(tfidf.transform(pd.concat([train_df['title'], test_df['title']])))
+
+    train_svd = pd.DataFrame(svd_obj.transform(train_des_tfidf))
+    test_svd = pd.DataFrame(svd_obj.transform(test_des_tfidf))
+    train_svd.columns = ['svd_des_' + str(i + 1) for i in range(n_comp)]
+    test_svd.columns = ['svd_des_' + str(i + 1) for i in range(n_comp)]
+    train_df = pd.concat([train_df, train_svd], axis=1)
+    test_df = pd.concat([test_df, test_svd], axis=1)
+
+    train_title_svd = pd.DataFrame(svd_title.transform(train_title_tfidf))
+    test_titile_svd = pd.DataFrame(svd_title.transform(test_title_tfidf))
+    train_title_svd.columns = ['svd_title_' + str(i + 1) for i in range(n_comp)]
+    test_titile_svd.columns = ['svd_title_' + str(i + 1) for i in range(n_comp)]
+    train_df = pd.concat([train_df, train_title_svd], axis=1)
+    test_df = pd.concat([test_df, test_titile_svd], axis=1)
+
+    for i in range(n_comp):
+        extract_columns.append('svd_des_' + str(i + 1))
+        extract_columns.append('svd_title_' + str(i + 1))
+
+    return train_df, test_df
+
 def main():
     # Extract train data
     print("3==D~ Extract train data ")
@@ -199,11 +265,14 @@ def main():
     # print("Agg data ...")
     # train_df, test_df = agg_features(train_df, test_df)
 
-    print("Extract title features ...")
-    train_df, test_df = title_features(train_df, test_df)
+    # print("Extract title features ...")
+    # train_df, test_df = title_features(train_df, test_df)
+    #
+    # print("Extract description features ...")
+    # train_df, test_df = description_features(train_df, test_df)
 
-    print("Extract description features ...")
-    train_df, test_df = description_features(train_df, test_df)
+    print("Extract title and description features ...")
+    train_df, test_df = extract_title_description_features(train_df, test_df)
 
     print("Create token ...")
     token = create_token(train_df)
