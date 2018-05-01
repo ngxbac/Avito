@@ -119,15 +119,11 @@ def title_features(train_df, test_df):
     from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
     from sklearn.decomposition import TruncatedSVD
 
-    ## Filling missing values ##
-    train_df["title"] = train_df["title"].fillna(" ", inplace=True)
-    test_df["title"] = test_df["title"].fillna(" ", inplace=True)
-
     train_df["title_nwords"] = train_df["title"].apply(lambda x: len(x.split()))
     test_df["title_nwords"] = test_df["title"].apply(lambda x: len(x.split()))
     extract_columns.append("title_nwords")
 
-    tfidf_vec = TfidfVectorizer(max_features=100000, stop_words=stopWords)
+    tfidf_vec = TfidfVectorizer(ngram_range=(1, 1))
     full_tfidf = tfidf_vec.fit_transform(train_df['title'].values.tolist() + test_df['title'].values.tolist())
     train_tfidf = tfidf_vec.transform(train_df['title'].values.tolist())
     test_tfidf = tfidf_vec.transform(test_df['title'].values.tolist())
@@ -154,8 +150,8 @@ def description_features(train_df, test_df):
     from sklearn.decomposition import TruncatedSVD
 
     ## Filling missing values ##
-    train_df["description"] = train_df["description"].fillna(" ", inplace=True)
-    test_df["description"] = test_df["description"].fillna(" ", inplace=True)
+    train_df["description"].fillna("NA", inplace=True)
+    test_df["description"].fillna("NA", inplace=True)
 
     train_df["description"] = train_df["description"].apply(lambda x: str(x))
     test_df["description"] = test_df["description"].apply(lambda x: str(x))
@@ -165,7 +161,7 @@ def description_features(train_df, test_df):
     extract_columns.append("desc_nwords")
 
     ### TFIDF Vectorizer ###
-    tfidf_vec = TfidfVectorizer(max_features=100000, stop_words=stopWords)
+    tfidf_vec = TfidfVectorizer(ngram_range=(1, 1), max_features=100000)
     full_tfidf = tfidf_vec.fit_transform(
         train_df['description'].values.tolist() + test_df['description'].values.tolist())
     train_tfidf = tfidf_vec.transform(train_df['description'].values.tolist())
@@ -265,14 +261,14 @@ def main():
     # print("Agg data ...")
     # train_df, test_df = agg_features(train_df, test_df)
 
-    # print("Extract title features ...")
-    # train_df, test_df = title_features(train_df, test_df)
-    #
-    # print("Extract description features ...")
-    # train_df, test_df = description_features(train_df, test_df)
+    print("Extract title features ...")
+    train_df, test_df = title_features(train_df, test_df)
 
-    print("Extract title and description features ...")
-    train_df, test_df = extract_title_description_features(train_df, test_df)
+    print("Extract description features ...")
+    train_df, test_df = description_features(train_df, test_df)
+
+    # print("Extract title and description features ...")
+    # train_df, test_df = extract_title_description_features(train_df, test_df)
 
     print("Create token ...")
     token = create_token(train_df)
