@@ -23,7 +23,7 @@ unused_columns = [
 cat_columns = [
     "region", "city", "parent_category_name",
     "category_name", "param_1", "param_2", "param_3",
-    "item_seq_number", "user_type", "image_top_1"
+    "user_type", "image_top_1"
 ]
 
 agg_columns = [
@@ -32,7 +32,7 @@ agg_columns = [
     'item_seq_number','activation_date'
 ]
 
-extract_columns = ["activation_date"]
+extract_columns = ["activation_date", "item_seq_number"]
 
 config = json.load(open("config.json"))
 
