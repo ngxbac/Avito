@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.model_selection import train_test_split
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, KFold
 
 import models
 import datasets as d
@@ -102,8 +102,8 @@ def train_normal(config, X, y, token_len):
 
 
 def train_fold(config, n_folds, X, y, token_len):
-    skf = StratifiedKFold(n_folds)
-    for fold, (train_index, test_index) in enumerate(skf.split(X, y)):
+    skf = KFold(n_folds)
+    for fold, (train_index, test_index) in enumerate(skf.split(X)):
         print("[+] Fold: {}".format(fold))
         X_train = X[train_index]
         y_train = y[train_index]
@@ -157,7 +157,7 @@ def train_fold(config, n_folds, X, y, token_len):
             if patience >= config["patience"]:
                 print("[+] Early stopping !!!")
                 print("[+] Best val {}".format(best_val))
-                return
+                break
 
             utils.save_checkpoint({
                 "epoch": epoch + 1,
