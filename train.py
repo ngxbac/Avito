@@ -81,7 +81,9 @@ def main():
 
     print("Model name " + model_name)
     print("Start at epoch {}".format(start_epoch))
-    print("Best val {}".format(best_val))
+    print("Best val: {}".format(best_val))
+    print("Number of embedding layer: {}".format(n_embedding_layer))
+    print("Total features: {}".format(data_dim))
 
     for epoch in range(config["epoch"]):
         utils.train(epoch, train_dataloader, model, criterion, optimizer)
@@ -96,6 +98,7 @@ def main():
 
         if patience >= config["patience"]:
             print("Early stopping !!!")
+            print("Best val {}".format(best_val))
             return
 
         utils.save_checkpoint({

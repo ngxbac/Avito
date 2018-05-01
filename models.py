@@ -16,24 +16,45 @@ class AvitorEmbedding(nn.Module):
         for i, layer in enumerate(self.embedding_layers):
             self.add_module(f"embedding_layer_{i}", layer)
 
+        for m in self.modules():
+            if isinstance(m, nn.Embedding):
+                nn.init.xavier_normal_(m.weight)
+
     def forward(self, x):
         return [self.embedding_layers[i](x[:, i]) for i in range(self.n_embedding_layers)]
 
 class Avitor(nn.Module):
     def __init__(self, embedding_model, in_features):
         super(Avitor, self).__init__()
-        self.embedding_model = embedding_model
         self.fc = nn.Sequential(
-            nn.Linear(in_features=in_features, out_features=64),
-            nn.SELU(),
-            nn.Dropout(0.05),
+            nn.BatchNorm1d(in_features),
+            nn.Linear(in_features=in_features, out_features=128),
+            nn.ReLU(),
+            nn.BatchNorm1d(128),
+            # nn.Dropout(0.5),
+            nn.Linear(in_features=128, out_features=128),
+            nn.ReLU(),
+            nn.BatchNorm1d(128),
+            # nn.Dropout(0.5),
+            nn.Linear(in_features=128, out_features=64),
+            nn.ReLU(),
+            nn.BatchNorm1d(64),
+            # nn.Dropout(0.5),
             nn.Linear(in_features=64, out_features=32),
-            nn.SELU(),
-            nn.Dropout(0.05),
-            nn.Linear(in_features=32, out_features=8),
-            nn.Linear(in_features=8, out_features=1),
+            nn.ReLU(),
+            nn.BatchNorm1d(32),
+            # nn.Dropout(0.5),
+            nn.Linear(in_features=32, out_features=1),
             nn.Sigmoid()
         )
+        self.embedding_model = embedding_model
+
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
         embedding_data = x[:, :self.embedding_model.n_embedding_layers].type("torch.LongTensor")

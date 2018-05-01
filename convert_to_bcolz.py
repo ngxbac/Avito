@@ -26,6 +26,13 @@ cat_columns = [
     "item_seq_number", "user_type", "image_top_1"
 ]
 
+agg_columns = [
+    'region', 'city', 'parent_category_name',
+    'category_name', 'image_top_1', 'user_type',
+    'item_seq_number','activation_date'
+]
+
+extract_columns = ["activation_date"]
 
 config = json.load(open("config.json"))
 
@@ -81,44 +88,73 @@ def write_to_bcolz(data, name, root="bcolz_data"):
     return bcolz_data
 
 
+def agg_features(train_df, test_df, columns=agg_columns):
+    for c in columns:
+        gp = train_df.groupby(c)['deal_probability']
+        mean = gp.mean()
+        std = gp.std()
+        train_df[c + '_deal_probability_avg'] = train_df[c].map(mean)
+        train_df[c + '_deal_probability_std'] = train_df[c].map(std)
+
+        test_df[c + '_deal_probability_avg'] = test_df[c].map(mean)
+        test_df[c + '_deal_probability_std'] = test_df[c].map(std)
+
+        extract_columns.append(c + '_deal_probability_avg')
+        extract_columns.append(c + '_deal_probability_std')
+
+    for c in columns:
+        gp = train_df.groupby(c)['price']
+        mean = gp.mean()
+        train_df[c + '_price_avg'] = train_df[c].map(mean)
+        test_df[c + '_price_avg'] = test_df[c].map(mean)
+
+        extract_columns.append(c + '_price_avg')
+
+    return train_df, test_df
+
+
 def main():
     # Extract train data
     print("3==D~ Extract train data ")
     print("Read csv file...")
-    df = load_csv(config["train_csv"])
-    print("Remove unused columns ...")
-    df = remove_unused_columns(df)
-    print("Convert date to day of week ...")
-    df = date_to_dow(df, "activation_date")
-    print("Create token ...")
-    token = create_token(df)
-    print("Tokenize data ...")
-    X_train = tokenize_data(df, token)
-    print("Make matrix data ...")
-    X_train.append(df["activation_date"].as_matrix())
-    X_train.append(log_prices(df))
-    y_train = df["deal_probability"].as_matrix()
-    X_train = np.asarray(X_train).T
-    y_train = np.asarray(y_train)
-    np.save("X_train.npy", X_train)
-    np.save("y_train.npy", y_train)
+    train_df = load_csv(config["train_csv"])
+    test_df = load_csv(config["test_csv"])
 
-    # Extract test data
-    print("3==D~ Extract test data ")
-    print("Read csv file...")
-    df = load_csv(config["test_csv"])
     print("Remove unused columns ...")
-    df = remove_unused_columns(df)
+    train_df = remove_unused_columns(train_df)
+    test_df = remove_unused_columns(test_df)
+
     print("Convert date to day of week ...")
-    df = date_to_dow(df, "activation_date")
+    train_df = date_to_dow(train_df, "activation_date")
+    test_df = date_to_dow(test_df, "activation_date")
+
+    # print("Agg data ...")
+    # train_df, test_df = agg_features(train_df, test_df)
+
+    print("Create token ...")
+    token = create_token(train_df)
+
     print("Tokenize data ...")
-    X_test = tokenize_data(df, token)
+    X_train = tokenize_data(train_df, token)
+    X_test = tokenize_data(test_df, token)
+
     print("Make matrix data ...")
-    X_test.append(df["activation_date"].as_matrix())
-    X_test.append(log_prices(df))
+    X_train.append(log_prices(train_df))
+    X_test.append(log_prices(test_df))
+
+    for c in extract_columns:
+        X_train.append(train_df[c].as_matrix())
+        X_test.append(test_df[c].as_matrix())
+
+    y_train = train_df["deal_probability"].as_matrix()
+
+    X_train = np.asarray(X_train).T
     X_test = np.asarray(X_test).T
+    np.save("X_train.npy", X_train)
     np.save("X_test.npy", X_test)
 
+    y_train = np.asarray(y_train)
+    np.save("y_train.npy", y_train)
     # Save token len
     token_len = [len(t) for t in token]
     print("Save token len ...")
