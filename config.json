@@ -1,0 +1,13 @@
+{
+  "train_csv": "/home/deeplearning/Kaggle/avito/input/train.csv",
+  "test_csv": "/home/deeplearning/Kaggle/avito/input/test.csv",
+  "sample_submission": "/home/deeplearning/Kaggle/avito/input/sample_submission.csv",
+  "extract_root": "",
+  "lr": 1e-2,
+  "epoch": 100,
+  "batch_size": 2048,
+  "embedding_size": 8,
+  "model_name": "avitor",
+  "patience": 5,
+  "resume": "ckp_best_avitor.pth.tar"
+}
