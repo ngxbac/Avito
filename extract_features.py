@@ -7,7 +7,7 @@ from tqdm import tqdm
 from sys import getsizeof
 from nltk.corpus import stopwords
 
-stopWords = stopwords.words('russian')
+stopWords_rus = stopwords.words('russian')
 
 all_columns = [
     "item_id", "user_id", "region", "city",
@@ -23,8 +23,11 @@ unused_columns = [
 ]
 
 cat_columns = [
-    "region", "city", "parent_category_name",
-    "category_name", "param_1", "param_2", "param_3",
+    "region", # Importance feature, best_val: 0.507
+    "city", # Importance feature, best_val: 0.510
+    "parent_category_name", # This feature seems not be importance, best_val:0.0505
+    "category_name", # This feature seems be importance, best_val:0.0507
+    "param_1", "param_2", "param_3",
     "user_type", "image_top_1"
 ]
 
@@ -59,10 +62,10 @@ def date_to_dow(df: pd.DataFrame):
     df["year_day"] = df["activation_date"].dt.dayofyear
 
     extract_columns.append("weekday")
-    extract_columns.append("week")
-    extract_columns.append("mon")
-    extract_columns.append("mday")
-    extract_columns.append("year_day")
+    # extract_columns.append("week")
+    # extract_columns.append("mon")
+    # extract_columns.append("mday")
+    # extract_columns.append("year_day")
 
     return df
 
@@ -124,6 +127,30 @@ def agg_features(train_df, test_df, columns=agg_columns):
         extract_columns.append(c + '_price_avg')
 
     return train_df, test_df
+
+
+def getTextFeatures(T, Col, max_features=10000, ngrams=(1,2), verbose=True):
+    from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+    from sklearn.decomposition import TruncatedSVD
+    from nltk.stem import PorterStemmer
+    import re
+    p = PorterStemmer()
+
+    def wordPreProcess(sentence):
+        return ' '.join([p.stem(x.lower()) for x in re.split('\W', sentence) if len(x) >= 1])
+
+    if verbose:
+        print('processing: ', Col)
+    vectorizer = CountVectorizer(stop_words=stopWords_rus,
+                                 preprocessor=wordPreProcess,
+                                 max_features=max_features,
+                                 binary=True,
+                                 ngram_range=ngrams)
+#     vectorizer = TfidfVectorizer(stop_words=stopwords.words('english'),
+#                                  preprocessor=wordPreProcess,
+#                                  max_features=max_features)
+    X = vectorizer.fit_transform(T[Col]).toarray()
+    return X, vectorizer.get_feature_names()
 
 
 def title_features(train_df, test_df):
@@ -198,8 +225,8 @@ def extract_title_description_features(train_df, test_df):
     from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
     from sklearn.decomposition import TruncatedSVD
 
-    tfidf = TfidfVectorizer(max_features=50000, stop_words=stopWords)
-    tfidf_title = TfidfVectorizer(max_features=50000, stop_words=stopWords)
+    tfidf = TfidfVectorizer(max_features=50000, stop_words=stopWords_rus)
+    tfidf_title = TfidfVectorizer(max_features=50000, stop_words=stopWords_rus)
 
     train_df['description'] = train_df['description'].fillna(' ')
     test_df['description'] = test_df['description'].fillna(' ')
@@ -304,13 +331,19 @@ def extract_params_features(train_df, test_df):
 
     return train_df, test_df
 
-
+from scipy.sparse import hstack
 def main():
     # Extract train data
     print("3==D~ Extract train data ")
     print("Read csv file...")
     train_df = load_csv(config["train_csv"])
     test_df = load_csv(config["test_csv"])
+
+    print("Get text features ...")
+    n_title, n_description = 5000, 8000
+    X_train_title, _ = getTextFeatures(train_df, 'title', max_features=n_title)
+    # xxx = X_train_title.toarray()
+    np.save("xxx.npy", X_train_title)
 
     print("Remove unused columns ...")
     train_df = remove_unused_columns(train_df)
@@ -334,6 +367,21 @@ def main():
 
     # print("Extract title and description features ...")
     # train_df, test_df = extract_title_description_features(train_df, test_df)
+
+    print("Get text features ...")
+    n_title, n_description = 50000, 100000
+    X_train_title, _ = getTextFeatures(train_df, 'title', max_features=n_title)
+    np.save("X_train_title.npy", np.asarray(X_train_title))
+    X_train_description, _ = getTextFeatures(train_df, 'description', max_features=n_description)
+
+    X_test_title, _ = getTextFeatures(test_df, 'title', max_features=n_title)
+    X_test_description, _ = getTextFeatures(test_df, 'description', max_features=n_description)
+
+    X_train_text = [X_train_title, X_train_description]
+    X_test_text = [X_test_title, X_test_description]
+
+    np.save("X_train_text.npy", np.asarray(X_train_text))
+    np.save("X_test_text.npy", np.asarray(X_test_text))
 
     print("Create token ...")
     token = create_token(train_df)
