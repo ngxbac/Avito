@@ -6,9 +6,9 @@
   "lr": 1e-2,
   "epoch": 100,
   "batch_size": 2048,
-  "embedding_size": 8,
-  "model_name": "avitor",
+  "embedding_size": 4,
+  "model_name": "avitor_tunning",
   "patience": 5,
-  "n_fold": 5,
-  "resume": "ckp_best_avitor.pth.tar"
+  "n_fold": 0,
+  "resume": ""
 }

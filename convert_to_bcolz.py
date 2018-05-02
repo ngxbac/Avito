@@ -34,7 +34,7 @@ agg_columns = [
     'item_seq_number','activation_date'
 ]
 
-extract_columns = ["activation_date", "item_seq_number"]
+extract_columns = ["item_seq_number"]
 
 config = json.load(open("config.json"))
 
@@ -51,8 +51,19 @@ def remove_unused_columns(df: pd.DataFrame, columns=unused_columns):
     return df
 
 
-def date_to_dow(df: pd.DataFrame, column):
-    df[column] = df[column].dt.weekday
+def date_to_dow(df: pd.DataFrame):
+    df["weekday"] = df["activation_date"].dt.weekday
+    df["week"] = df["activation_date"].dt.week
+    df["mon"] = df["activation_date"].dt.month
+    df["mday"] = df["activation_date"].dt.day
+    df["year_day"] = df["activation_date"].dt.dayofyear
+
+    extract_columns.append("weekday")
+    extract_columns.append("week")
+    extract_columns.append("mon")
+    extract_columns.append("mday")
+    extract_columns.append("year_day")
+
     return df
 
 
@@ -243,6 +254,57 @@ def extract_title_description_features(train_df, test_df):
 
     return train_df, test_df
 
+
+def extract_params_features(train_df, test_df):
+    from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+    from sklearn.decomposition import TruncatedSVD
+
+    train_df["param_1"].fillna("NA", inplace=True)
+    test_df["param_1"].fillna("NA", inplace=True)
+    train_df["param_1"] = train_df["param_1"].apply(lambda x: str(x))
+    test_df["param_1"] = test_df["param_1"].apply(lambda x: str(x))
+
+    train_df["param_2"].fillna("NA", inplace=True)
+    test_df["param_2"].fillna("NA", inplace=True)
+    train_df["param_2"] = train_df["param_2"].apply(lambda x: str(x))
+    test_df["param_2"] = test_df["param_2"].apply(lambda x: str(x))
+
+    train_df["param_3"].fillna("NA", inplace=True)
+    test_df["param_3"].fillna("NA", inplace=True)
+    train_df["param_3"] = train_df["param_3"].apply(lambda x: str(x))
+    test_df["param_3"] = test_df["param_3"].apply(lambda x: str(x))
+
+
+    train_df["params"] = train_df["param_1"] + train_df["param_2"] + train_df["param_3"]
+    test_df["params"] = test_df["param_1"] + test_df["param_2"] + test_df["param_3"]
+
+    train_df["param_nwords"] = train_df["params"].apply(lambda x: len(str(x).split()))
+    test_df["param_nwords"] = test_df["params"].apply(lambda x: len(str(x).split()))
+    extract_columns.append("param_nwords")
+
+    ### TFIDF Vectorizer ###
+    tfidf_vec = TfidfVectorizer(ngram_range=(1, 1), max_features=100000)
+    full_tfidf = tfidf_vec.fit_transform(
+        train_df['params'].values.tolist() + test_df['params'].values.tolist())
+    train_tfidf = tfidf_vec.transform(train_df['params'].values.tolist())
+    test_tfidf = tfidf_vec.transform(test_df['params'].values.tolist())
+
+    ### SVD Components ###
+    n_comp = 3
+    svd_obj = TruncatedSVD(n_components=n_comp, algorithm='arpack')
+    svd_obj.fit(full_tfidf)
+    train_svd = pd.DataFrame(svd_obj.transform(train_tfidf))
+    test_svd = pd.DataFrame(svd_obj.transform(test_tfidf))
+    train_svd.columns = ['svd_param_' + str(i + 1) for i in range(n_comp)]
+    test_svd.columns = ['svd_param_' + str(i + 1) for i in range(n_comp)]
+    train_df = pd.concat([train_df, train_svd], axis=1)
+    test_df = pd.concat([test_df, test_svd], axis=1)
+    for i in range(n_comp):
+        extract_columns.append('svd_param_' + str(i + 1))
+
+    return train_df, test_df
+
+
 def main():
     # Extract train data
     print("3==D~ Extract train data ")
@@ -255,8 +317,8 @@ def main():
     test_df = remove_unused_columns(test_df)
 
     print("Convert date to day of week ...")
-    train_df = date_to_dow(train_df, "activation_date")
-    test_df = date_to_dow(test_df, "activation_date")
+    train_df = date_to_dow(train_df)
+    test_df = date_to_dow(test_df)
 
     # print("Agg data ...")
     # train_df, test_df = agg_features(train_df, test_df)
@@ -266,6 +328,9 @@ def main():
 
     print("Extract description features ...")
     train_df, test_df = description_features(train_df, test_df)
+
+    # print("Extract param features ...")
+    # train_df, test_df = extract_params_features(train_df, test_df)
 
     # print("Extract title and description features ...")
     # train_df, test_df = extract_title_description_features(train_df, test_df)
