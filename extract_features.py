@@ -102,18 +102,18 @@ def write_to_bcolz(data, name, root="bcolz_data"):
 
 
 def agg_features(train_df, test_df, columns=agg_columns):
-    for c in columns:
-        gp = train_df.groupby(c)['deal_probability']
-        mean = gp.mean()
-        std = gp.std()
-        train_df[c + '_deal_probability_avg'] = train_df[c].map(mean)
-        train_df[c + '_deal_probability_std'] = train_df[c].map(std)
-
-        test_df[c + '_deal_probability_avg'] = test_df[c].map(mean)
-        test_df[c + '_deal_probability_std'] = test_df[c].map(std)
-
-        extract_columns.append(c + '_deal_probability_avg')
-        extract_columns.append(c + '_deal_probability_std')
+    # for c in columns:
+    #     gp = train_df.groupby(c)['deal_probability']
+    #     mean = gp.mean()
+    #     std = gp.std()
+    #     train_df[c + '_deal_probability_avg'] = train_df[c].map(mean)
+    #     train_df[c + '_deal_probability_std'] = train_df[c].map(std)
+    #
+    #     test_df[c + '_deal_probability_avg'] = test_df[c].map(mean)
+    #     test_df[c + '_deal_probability_std'] = test_df[c].map(std)
+    #
+    #     extract_columns.append(c + '_deal_probability_avg')
+    #     extract_columns.append(c + '_deal_probability_std')
 
     for c in columns:
         gp = train_df.groupby(c)['price']
