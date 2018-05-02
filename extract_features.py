@@ -339,12 +339,6 @@ def main():
     train_df = load_csv(config["train_csv"])
     test_df = load_csv(config["test_csv"])
 
-    print("Get text features ...")
-    n_title, n_description = 5000, 8000
-    X_train_title, _ = getTextFeatures(train_df, 'title', max_features=n_title)
-    # xxx = X_train_title.toarray()
-    np.save("xxx.npy", X_train_title)
-
     print("Remove unused columns ...")
     train_df = remove_unused_columns(train_df)
     test_df = remove_unused_columns(test_df)
@@ -367,21 +361,6 @@ def main():
 
     # print("Extract title and description features ...")
     # train_df, test_df = extract_title_description_features(train_df, test_df)
-
-    print("Get text features ...")
-    n_title, n_description = 50000, 100000
-    X_train_title, _ = getTextFeatures(train_df, 'title', max_features=n_title)
-    np.save("X_train_title.npy", np.asarray(X_train_title))
-    X_train_description, _ = getTextFeatures(train_df, 'description', max_features=n_description)
-
-    X_test_title, _ = getTextFeatures(test_df, 'title', max_features=n_title)
-    X_test_description, _ = getTextFeatures(test_df, 'description', max_features=n_description)
-
-    X_train_text = [X_train_title, X_train_description]
-    X_test_text = [X_test_title, X_test_description]
-
-    np.save("X_train_text.npy", np.asarray(X_train_text))
-    np.save("X_test_text.npy", np.asarray(X_test_text))
 
     print("Create token ...")
     token = create_token(train_df)
