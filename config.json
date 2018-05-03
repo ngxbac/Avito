@@ -2,6 +2,7 @@
   "train_csv": "/home/deeplearning/Kaggle/avito/input/train.csv",
   "test_csv": "/home/deeplearning/Kaggle/avito/input/test.csv",
   "sample_submission": "/home/deeplearning/Kaggle/avito/input/sample_submission.csv",
+  "word2vec_ru": "/home/deeplearning/Kaggle/avito/input/wiki.ru.vec",
   "extract_root": "",
   "lr": 1e-2,
   "epoch": 100,
