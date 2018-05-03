@@ -20,6 +20,7 @@ def predict_fold(config, n_folds, X_test, token_len):
     test_dataset = d.NumpyDataset(X_test, None)
     test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False)
     preds_all = []
+    predict_root = config["predict_root"]
     for fold in range(n_folds):
         print("[+] Predict fold: {}".format(fold))
         embedding_size, data_dim = config["embedding_size"], X_test.shape[1]
@@ -62,12 +63,14 @@ def predict_fold(config, n_folds, X_test, token_len):
         preds_all.append(preds)
         submission = pd.read_csv(config["sample_submission"])
         submission['deal_probability'] = preds
-        submission.to_csv(f"submission_{model_name}_{fold}.csv", index=False)
+        #submission.to_csv(f"submission_{model_name}_{fold}.csv", index=False)
+        utils.save_csv(submission, predict_root, f"submission_{model_name}_{fold}.csv")
     preds_all = np.array(preds_all)
     preds_avg = np.mean(preds_all, axis=0)
     submission = pd.read_csv(config["sample_submission"])
     submission['deal_probability'] = preds_avg
-    submission.to_csv(f"submission_{model_name}_avg.csv", index=False)
+    #submission.to_csv(f"submission_{model_name}_avg.csv", index=False)
+    utils.save_csv(submission, predict_root, f"submission_{model_name}_avg.csv")
 
 
 def predict_one(config, X_test, token_len):
@@ -109,6 +112,7 @@ def predict_one(config, X_test, token_len):
     model.eval()
 
     preds = []
+    predict_root = config["predict_root"]
     for batch_id, (data, _) in enumerate(test_dataloader):
         output = model(data)
         preds += output.data.cpu().numpy().tolist()
@@ -116,15 +120,17 @@ def predict_one(config, X_test, token_len):
     preds = [p[0] for p in preds]
     submission = pd.read_csv(config["sample_submission"])
     submission['deal_probability'] = preds
-    submission.to_csv(f"submission_{model_name}_one.csv", index=False)
+    #submission.to_csv(f"submission_{model_name}_one.csv", index=False)
+    utils.save_csv(submission, predict_root, f"submission_{model_name}_one.csv")
 
 def main():
     # Load json config
     config = json.load(open("config.json"))
-
+    extracted_features_root = config["extracted_features"]
+    print("[+] Load features ...")
     # Load data and token len of embedding layers
-    X_test = np.load("X_test.npy")
-    token_len = np.load("token_len.npy")
+    X_test = utils.load_features(extracted_features_root, "X_test")
+    token_len = y = utils.load_features(extracted_features_root, "token_len")
 
     n_folds = config["n_fold"]
     if n_folds:

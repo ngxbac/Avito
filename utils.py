@@ -4,6 +4,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 import torch.optim as optim
 import os
+import numpy as np
 
 
 def to_gpu(x):
@@ -113,3 +114,22 @@ def load_checkpoint(checkpoint):
     else:
         print("=> no checkpoint found at '{}'".format(checkpoint))
         return None
+    
+
+def save_features(feature, root, name):
+    if not os.path.exists(root):
+        os.mkdir(root)
+    np.save(f"{root}/{name}.npy", feature)
+    
+
+def load_features(root, name):
+    if not os.path.exists(root):
+        print(f"[+] Feature {name} does not exists")
+        return None
+    return np.load(f"{root}/{name}.npy")
+
+
+def save_csv(df, root, name):
+    if not os.path.exists(root):
+        os.mkdir(root)
+    df.to_csv(f"{root}/{name}", index=False)

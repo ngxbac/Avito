@@ -6,6 +6,7 @@ import os
 from tqdm import tqdm
 from sys import getsizeof
 from nltk.corpus import stopwords
+import utils
 
 stopWords_rus = stopwords.words('russian')
 
@@ -334,26 +335,26 @@ def extract_params_features(train_df, test_df):
 from scipy.sparse import hstack
 def main():
     # Extract train data
-    print("3==D~ Extract train data ")
+    print("[+] Extract train data ")
     print("Read csv file...")
     train_df = load_csv(config["train_csv"])
     test_df = load_csv(config["test_csv"])
 
-    print("Remove unused columns ...")
+    print("[+] Remove unused columns ...")
     train_df = remove_unused_columns(train_df)
     test_df = remove_unused_columns(test_df)
 
-    print("Convert date to day of week ...")
+    print("[+] Convert date to day of week ...")
     train_df = date_to_dow(train_df)
     test_df = date_to_dow(test_df)
 
     # print("Agg data ...")
     # train_df, test_df = agg_features(train_df, test_df)
 
-    print("Extract title features ...")
+    print("[+] Extract title features ...")
     train_df, test_df = title_features(train_df, test_df)
 
-    print("Extract description features ...")
+    print("[+] Extract description features ...")
     train_df, test_df = description_features(train_df, test_df)
 
     # print("Extract param features ...")
@@ -362,14 +363,14 @@ def main():
     # print("Extract title and description features ...")
     # train_df, test_df = extract_title_description_features(train_df, test_df)
 
-    print("Create token ...")
+    print("[+] Create token ...")
     token = create_token(train_df)
 
-    print("Tokenize data ...")
+    print("[+] Tokenize data ...")
     X_train = tokenize_data(train_df, token)
     X_test = tokenize_data(test_df, token)
 
-    print("Make matrix data ...")
+    print("[+] Make matrix data ...")
     X_train.append(log_prices(train_df))
     X_test.append(log_prices(test_df))
 
@@ -377,19 +378,25 @@ def main():
         X_train.append(train_df[c].as_matrix())
         X_test.append(test_df[c].as_matrix())
 
+    print("[+] Save features ...")
     y_train = train_df["deal_probability"].as_matrix()
-
     X_train = np.asarray(X_train).T
     X_test = np.asarray(X_test).T
-    np.save("X_train.npy", X_train)
-    np.save("X_test.npy", X_test)
-
     y_train = np.asarray(y_train)
-    np.save("y_train.npy", y_train)
     # Save token len
     token_len = [len(t) for t in token]
-    print("Save token len ...")
-    np.save("token_len.npy", np.asarray(token_len))
+    
+    extracted_features_root = config["extracted_features"]
+    utils.save_features(X_train, root=extracted_features_root,
+                       name="X_train")
+    utils.save_features(X_test, root=extracted_features_root,
+                       name="X_test")
+    utils.save_features(y_train, root=extracted_features_root,
+                       name="y_train")
+    utils.save_features(np.asarray(token_len), 
+                        root=extracted_features_root,
+                        name="token_len")
+
 
 if __name__ == '__main__':
     main()

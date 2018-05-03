@@ -169,11 +169,12 @@ def train_fold(config, n_folds, X, y, token_len):
 def main():
     # Load json config
     config = json.load(open("config.json"))
-
+    extracted_features_root = config["extracted_features"]
     # Load data and token len of embedding layers
-    X = np.load("X_train.npy")
-    y = np.load("y_train.npy")
-    token_len = np.load("token_len.npy")
+    print("[+] Load features ...")
+    X = utils.load_features(extracted_features_root, "X_train")
+    y = utils.load_features(extracted_features_root, "y_train")
+    token_len = utils.load_features(extracted_features_root, "token_len")
 
     n_folds = config["n_fold"]
     if n_folds:
