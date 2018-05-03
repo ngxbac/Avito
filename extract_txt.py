@@ -38,7 +38,7 @@ def extract_txt(model, df, column, prefix="train"):
 
     ## Convert into numpy array
     txt_features = np.array(features)
-    np.save(f"X_{prefix}_{coulumn}.npy", txt_features)
+    np.save(f"X_{prefix}_{column}.npy", txt_features)
 
 
 def main():
