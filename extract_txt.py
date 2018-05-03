@@ -26,12 +26,12 @@ def vector_sum(x):
     return np.sum(x,axis=0)
 
 
-def extract_txt(df, column, prefix="train"):
+def extract_txt(model, df, column, prefix="train"):
     features = []
     for desc in df[column].values:
         tokens = tokenize(desc)
         if len(tokens) != 0:  ## If the description is missing then return a 300 dim vector filled with zeros
-            word_vecs = [get_vector(w) for w in tokens]
+            word_vecs = [get_vector(model, w) for w in tokens]
             features.append(vector_sum(word_vecs))
         else:
             features.append(np.zeros(shape=300))
@@ -52,9 +52,9 @@ def main():
     test_df = pd.read_csv(config["test_csv"])
 
     print("[+] Extract train's description text feature ...")
-    extract_txt(train_df, "description", "train")
+    extract_txt(ru_model, train_df, "description", "train")
     print("[+] Extract test's description text feature ...")
-    extract_txt(test_df, "description", "test")
+    extract_txt(ru_model, test_df, "description", "test")
 
 
 if __name__ == '__main__':
