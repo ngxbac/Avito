@@ -336,7 +336,7 @@ from scipy.sparse import hstack
 def main():
     # Extract train data
     print("[+] Extract train data ")
-    print("Read csv file...")
+    print("[+] Read csv file...")
     train_df = load_csv(config["train_csv"])
     test_df = load_csv(config["test_csv"])
 
