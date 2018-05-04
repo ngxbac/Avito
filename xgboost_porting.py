@@ -45,9 +45,11 @@ def main():
     del test_df
     gc.collect()
 
+    print("[+] Log price ...")
     df["price"] = df["price"].apply(np.log1p)
     df["price"] = df["price"].apply(lambda x: -1 if x == -np.inf else x)
 
+    print("[+] Create time features ...")
     df["mon"] = df["activation_date"].dt.month
     df["mday"] = df["activation_date"].dt.day
     df["week"] = df["activation_date"].dt.week
@@ -58,6 +60,7 @@ def main():
         "region", "user_type"
     ]
 
+    print("[+] Label categories ...")
     for cat in cat_vars:
         df[cat] = LabelEncoder().fit_transform(df[cat].values)
 
@@ -66,6 +69,7 @@ def main():
         "param_3", "title", "description"
     ]
 
+    print("[+] Merge text ...")
     for txt in txt_vars:
         df[txt] = df[txt].astype("str")
 
@@ -79,8 +83,11 @@ def main():
         "title", "description", "activation_date", "image"
     ]
 
+    print("[+] Delete unused columns ...")
     for c in delete_columns:
         df = df.drop(c, axis=1)
+
+    print("[+] Extract TFIDF  ...")
     df["txt"] = df["txt"].apply(lambda x: x.lower())
     df["txt"] = df["txt"].replace("[^[:alpha:]]", " ", regex=True)
     df["txt"] = df["txt"].replace("\\s+", " ", regex=True)
@@ -95,10 +102,19 @@ def main():
         'mon', 'mday', 'week', 'wday'
     ]
 
+    print("[+] Stack more features  ...")
     for c in extract_columns:
         full_tfidf = hstack([full_tfidf, df[c].as_matrix()])
+    full_tfidf = full_tfidf.tocsr()
+    print("[+] Create y_train ...")
+    y_train = train_df["deal_probability"].as_matrix()
+    y_train = np.asarray(y_train)
 
-    np.save("full_tfidf.npy", full_tfidf)
+    extracted_features_root = config["extracted_features"]
+    utils.save_features(full_tfidf.tocsr(), root=extracted_features_root,
+                       name="X_train_xgboost")
+    utils.save_features(y_train, root=extracted_features_root,
+                       name="y_train_xgboost")
 
 if __name__ == '__main__':
     main()
