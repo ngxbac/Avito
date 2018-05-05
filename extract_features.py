@@ -47,7 +47,7 @@ config = json.load(open("config.json"))
 
 def load_csv(csv_path):
     df = pd.read_csv(csv_path, parse_dates=["activation_date"])
-    # df = df.replace(np.nan, -1, regex=True)
+    df = df.replace(np.nan, -1, regex=True)
     return df
 
 
@@ -130,6 +130,9 @@ def title_features(df, n_comp=3):
     svd = svd_obj.transform(tfidf)
     svd_df = pd.DataFrame(svd)
     svd_df.columns = ['svd_title_' + str(i + 1) for i in range(n_comp)]
+    print("Title SVD_DF")
+    print(svd_df.head(5))
+
     for i in range(n_comp):
         num_columns.append('svd_title_' + str(i + 1))
 
@@ -138,7 +141,8 @@ def title_features(df, n_comp=3):
 
 
 def description_features(df, n_comp=3):
-    df["description"] = df["description"].fillna(' ')
+    df["description"].fillna("NA", inplace=True)
+    df["description"] = df["description"].astype(str)
     df["desc_nwords"] = df["description"].apply(lambda x: len(x.split()))
     num_columns.append("desc_nwords")
 
@@ -151,6 +155,9 @@ def description_features(df, n_comp=3):
     svd = svd_obj.transform(tfidf)
     svd_df = pd.DataFrame(svd)
     svd_df.columns = ['svd_desc_' + str(i + 1) for i in range(n_comp)]
+    print("Description SVD_DF")
+    print(svd_df.head(5))
+    
     for i in range(n_comp):
         num_columns.append('svd_desc_' + str(i + 1))
 
@@ -176,24 +183,23 @@ def main():
         print("[+] Tokenize data ...")
         train_token_data = tokenize_data(train_df, token)
         test_token_data = tokenize_data(test_df, token)
+        
+    y_train = train_df["deal_probability"].as_matrix()
+    train_df = train_df.drop("deal_probability", axis=1)
 
-
-    df = pd.concat([train_df, test_df])
+    df = pd.concat([train_df, test_df], ignore_index=True)
     n_train = len(train_df)
     del train_df
     del test_df
     gc.collect()
 
-
     with utils.timer("Extract time features"):
         print("[+] Convert date to day of week ...")
         df = date_to_dow(df)
 
-
     with utils.timer("Extract title features"):
         print("[+] Extract title features ...")
         df, title_tfidf = title_features(df)
-
 
     with utils.timer("Extract description features"):
         print("[+] Extract description features ...")
@@ -206,12 +212,10 @@ def main():
     X_num = []
     print("[+] Extract numerical features ...")
     for c in num_columns:
-        X_num.append(df[c].as_matrix().T)
-
-    y_train = train_df["deal_probability"].as_matrix()
+        X_num.append(df[c].as_matrix())
 
     # Numeric data
-    X_num = np.array(X_num, dtype=np.float32)
+    X_num = np.array(X_num, dtype=np.float32).T
     X_train_num = X_num[:n_train]
     X_test_num = X_num[n_train:]
     print(f"[+] Numeric {X_train_num.shape}/{X_test_num.shape}")
