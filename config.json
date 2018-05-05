@@ -3,7 +3,7 @@
   "test_csv": "/home/deeplearning/Kaggle/avito/input/test.csv",
   "sample_submission": "/home/deeplearning/Kaggle/avito/input/sample_submission.csv",
   "word2vec_ru": "/home/deeplearning/Kaggle/avito/input/wiki.ru.vec",
-  "extract_root": "",
+  "extracted_features": "extracted_features",
   "lr": 1e-2,
   "epoch": 100,
   "batch_size": 2048,

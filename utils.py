@@ -1,10 +1,19 @@
 import torch
 import torch.nn as nn
 from tqdm import tqdm
+from contextlib import contextmanager
+import time
 from torch.utils.data import DataLoader
 import torch.optim as optim
 import os
 import numpy as np
+
+
+@contextmanager
+def timer(name):
+    t0 = time.time()
+    yield
+    print(f'[{name}] done in {time.time() - t0:.0f} s')
 
 
 def to_gpu(x):
