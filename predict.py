@@ -16,24 +16,35 @@ import utils
 import json
 
 
-def predict_fold(config, n_folds, X_test, token_len):
-    test_dataset = d.NumpyDataset(X_test, None)
+def predict_fold(config, n_folds, X_num, X_cat, X_des, X_title, token_len):
+    test_dataset = d.AvitoDataset(X_num, X_cat,
+                                  X_des, X_title, None)
     test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False)
     preds_all = []
     predict_root = config["predict_root"]
     for fold in range(n_folds):
         print("[+] Predict fold: {}".format(fold))
-        embedding_size, data_dim = config["embedding_size"], X_test.shape[1]
-        n_embedding_layer = len(token_len)
-        n_fc_in_features = n_embedding_layer * embedding_size + data_dim - n_embedding_layer
+        embedding_size = config["embedding_size"]
+        # Category model
+        cat_model = models.AvitorCat(token_len, embedding_size)
+        print("[+] Category model")
+        print(cat_model)
 
-        # Embedding model
-        embedding_model = models.AvitorEmbedding(token_len, embedding_size)
-        # print(embedding_model)
+        # Numeric model
+        num_model = models.AvitorNum(X_num.shape[1])
+        print("[+] Numeric model")
+        print(num_model)
+
+        # Text model
+        text_model = models.AvitorText([X_des.shape[1], X_title.shape[1]],
+                                       drop_outs=[0.2, 0.2])
+        print("[+] Text model")
+        print(text_model)
 
         # FC model
-        model = models.Avitor(embedding_model, n_fc_in_features)
-        # print(model)
+        model = models.Avitor(num_model, cat_model, text_model)
+        print("[+] Summary model")
+        print(model)
 
         if torch.cuda.is_available():
             model.cuda()
@@ -73,21 +84,32 @@ def predict_fold(config, n_folds, X_test, token_len):
     utils.save_csv(submission, predict_root, f"submission_{model_name}_avg.csv")
 
 
-def predict_one(config, X_test, token_len):
-    test_dataset = d.NumpyDataset(X_test, None)
+def predict_one(config, X_num, X_cat, X_des, X_title, token_len):
+    test_dataset = d.AvitoDataset(X_num, X_cat,
+                                  X_des, X_title, None)
     test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False)
 
-    embedding_size, data_dim = config["embedding_size"], X_test.shape[1]
-    n_embedding_layer = len(token_len)
-    n_fc_in_features = n_embedding_layer * embedding_size + data_dim - n_embedding_layer
+    embedding_size = config["embedding_size"]
+    # Category model
+    cat_model = models.AvitorCat(token_len, embedding_size)
+    print("[+] Category model")
+    print(cat_model)
 
-    # Embedding model
-    embedding_model = models.AvitorEmbedding(token_len, embedding_size)
-    # print(embedding_model)
+    # Numeric model
+    num_model = models.AvitorNum(X_num.shape[1])
+    print("[+] Numeric model")
+    print(num_model)
+
+    # Text model
+    text_model = models.AvitorText([X_des.shape[1], X_title.shape[1]],
+                                   drop_outs=[0.2, 0.2])
+    print("[+] Text model")
+    print(text_model)
 
     # FC model
-    model = models.Avitor(embedding_model, n_fc_in_features)
-    # print(model)
+    model = models.Avitor(num_model, cat_model, text_model)
+    print("[+] Summary model")
+    print(model)
 
     if torch.cuda.is_available():
         model.cuda()
@@ -128,15 +150,22 @@ def main():
     config = json.load(open("config.json"))
     extracted_features_root = config["extracted_features"]
     print("[+] Load features ...")
-    # Load data and token len of embedding layers
-    X_test = utils.load_features(extracted_features_root, "X_test")
-    token_len = y = utils.load_features(extracted_features_root, "token_len")
+
+    X_test_num = utils.load_features(extracted_features_root, "X_test_num")
+    X_test_cat = utils.load_features(extracted_features_root, "X_test_cat")
+    X_test_desc = utils.load_features(extracted_features_root, "X_test_desc").any()
+    X_test_title = utils.load_features(extracted_features_root, "X_test_title").any()
+    token_len = utils.load_features(extracted_features_root, "token_len")
 
     n_folds = config["n_fold"]
     if n_folds:
-        predict_fold(config, n_folds, X_test, token_len)
+        predict_fold(config, n_folds, X_test_num,
+                    X_test_cat, X_test_desc,
+                    X_test_title, token_len)
     else:
-        predict_one(config, X_test, token_len)
+        predict_one(config, X_test_num,
+                    X_test_cat, X_test_desc,
+                    X_test_title, token_len)
 
 if __name__ == '__main__':
     main()
