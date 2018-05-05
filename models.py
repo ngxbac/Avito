@@ -134,7 +134,7 @@ class Avitor(nn.Module):
         out_cat = self.cat_model(X_cat)
         out_txt = self.text_model([X_des, X_title])
 
-        all_features = torch.cat([out_num, out_cat, out_txt], 1)
+        all_features = torch.cat([out_num, *out_cat, *out_txt], 1)
         all_features = utils.to_gpu(all_features)
 
         return self.fc(all_features)
