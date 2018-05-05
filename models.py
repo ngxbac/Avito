@@ -30,27 +30,36 @@ class AvitorText(nn.Module):
         self.text_inputs = text_inputs
         self.drop_outs = drop_outs
         self.fcs = []
-        self.out_features = 0
+        self.out_features = 128
+        self.out_txt_features = 0
         for i, (txt_input, dropout) in enumerate(zip(text_inputs, drop_outs)):
             fc = nn.Sequential(
                 nn.BatchNorm1d(txt_input),
                 nn.Dropout(dropout),
                 nn.Linear(txt_input, txt_input // 100),
                 nn.Dropout(dropout),
-                nn.BatchNorm1d(txt_input // 100),
+                #nn.BatchNorm1d(txt_input // 100),
             )
-            self.out_features += txt_input // 100
+            self.out_txt_features += txt_input // 100
 
             self.add_module(f"Text_layer_{i}", fc)
             self.fcs.append(fc)
-
+        
+        self.fc = nn.Sequential(
+            nn.BatchNorm1d(self.out_txt_features),
+            nn.Linear(self.out_txt_features, self.out_features),
+            nn.ReLU(),
+            nn.Dropout(self.drop_outs[0])
+        )
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.xavier_normal_(m.weight)
 
     def forward(self, input):
         out = [fc(x) for x, fc in zip(input, self.fcs)]
-        return out
+        out = torch.cat(out, 1)
+        out = utils.to_gpu(out)
+        return self.fc(out)
 
 
 class AvitorNum(nn.Module):
@@ -134,7 +143,7 @@ class Avitor(nn.Module):
         out_cat = self.cat_model(X_cat)
         out_txt = self.text_model([X_des, X_title])
 
-        all_features = torch.cat([out_num, *out_cat, *out_txt], 1)
+        all_features = torch.cat([out_num, *out_cat, out_txt], 1)
         all_features = utils.to_gpu(all_features)
 
         return self.fc(all_features)

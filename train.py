@@ -28,7 +28,7 @@ class rmse(nn.Module):
 def train_normal(config, X_num, X_cat, X_des, X_title, y, token_len):
     # Create train/valid dataset and dataloader
     indicates = range(X_num.shape[0])
-    _, _, _, _, train_indicates, test_indicates = train_test_split(X_num, y, indicates, test_size=0.2, random_state=1700)
+    _, _, _, _, train_indicates, test_indicates = train_test_split(X_num, y, indicates, test_size=0.1, random_state=1700)
 
     X_train_num = X_num[train_indicates]
     X_train_cat = X_cat[train_indicates]
@@ -38,7 +38,8 @@ def train_normal(config, X_num, X_cat, X_des, X_title, y, token_len):
     y_train = y[train_indicates]
     train_dataset = d.AvitoDataset(X_train_num, X_train_cat,
                                    X_train_des, X_train_title, y_train)
-    train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], 
+                                  num_workers = 8, shuffle=True)
 
     X_val_num = X_num[test_indicates]
     X_val_cat = X_cat[test_indicates]
@@ -47,7 +48,8 @@ def train_normal(config, X_num, X_cat, X_des, X_title, y, token_len):
     y_valid = y[test_indicates]
     valid_dataset = d.AvitoDataset(X_val_num, X_val_cat,
                                    X_val_des, X_val_title, y_valid)
-    valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], shuffle=True)
+    valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], 
+                                  num_workers = 8, shuffle=True)
 
     embedding_size = config["embedding_size"]
     # Category model
@@ -62,7 +64,7 @@ def train_normal(config, X_num, X_cat, X_des, X_title, y, token_len):
 
     # Text model
     text_model = models.AvitorText([X_train_des.shape[1], X_train_title.shape[1]],
-                                   drop_outs=[0.2, 0.2])
+                                   drop_outs=[0.5, 0.5])
     print("[+] Text model")
     print(text_model)
 
@@ -137,7 +139,8 @@ def train_fold(config, n_folds, X_num, X_cat, X_des, X_title, y, token_len):
         y_train = y[train_index]
         train_dataset = d.AvitoDataset(X_train_num, X_train_cat,
                                        X_train_des, X_train_title, y_train)
-        train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True)
+        train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], 
+                                      num_workers = 8, shuffle=True)
 
         X_val_num = X_num[test_index]
         X_val_cat = X_cat[test_index]
@@ -146,7 +149,8 @@ def train_fold(config, n_folds, X_num, X_cat, X_des, X_title, y, token_len):
         y_valid = y[test_index]
         valid_dataset = d.AvitoDataset(X_val_num, X_val_cat,
                                        X_val_des, X_val_title, y_valid)
-        valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], shuffle=True)
+        valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], 
+                                      num_workers = 8, shuffle=True)
 
         embedding_size = config["embedding_size"]
         # Category model
@@ -161,7 +165,7 @@ def train_fold(config, n_folds, X_num, X_cat, X_des, X_title, y, token_len):
 
         # Text model
         text_model = models.AvitorText([X_train_des.shape[1], X_train_title.shape[1]],
-                                       drop_outs = [0.2, 0.2])
+                                       drop_outs = [0.5, 0.5])
         print("[+] Text model")
         print(text_model)
 
