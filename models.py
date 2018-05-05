@@ -23,30 +23,50 @@ class AvitorEmbedding(nn.Module):
     def forward(self, x):
         return [self.embedding_layers[i](x[:, i]) for i in range(self.n_embedding_layers)]
 
-class Avitor(nn.Module):
-    def __init__(self, embedding_model, in_features):
-        super(Avitor, self).__init__()
+
+class AvitorText(nn.Module):
+    def __init__(self, text_inputs, drop_outs):
+        super(AvitorText, self).__init__()
+        self.text_inputs = text_inputs
+        self.drop_outs = drop_outs
+        self.fcs = []
+        self.out_features = 0
+        for i, (txt_input, dropout) in enumerate(zip(text_inputs, drop_outs)):
+            fc = nn.Sequential(
+                nn.BatchNorm1d(txt_input),
+                nn.Dropout(dropout),
+                nn.Linear(txt_input, txt_input // 100),
+                nn.Dropout(dropout),
+                nn.BatchNorm1d(txt_input // 100),
+            )
+            self.out_features += txt_input // 100
+
+            self.add_module(f"Text_layer_{i}", fc)
+            self.fcs.append(fc)
+
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_normal_(m.weight)
+
+    def forward(self, input):
+        out = [fc(x) for x, fc in zip(input, self.fcs)]
+        return out
+
+
+class AvitorNum(nn.Module):
+    def __init__(self, in_features, out_features = 50, dropout=0.5):
+        super(AvitorNum, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.dropout = dropout
         self.fc = nn.Sequential(
-            nn.BatchNorm1d(in_features),
-            nn.Linear(in_features=in_features, out_features=128),
+            nn.BatchNorm1d(self.in_features),
+            nn.Linear(self.in_features, self.out_features),
             nn.ReLU(),
-            nn.BatchNorm1d(128),
-            nn.Linear(in_features=128, out_features=128),
-            nn.ReLU(),
-            nn.BatchNorm1d(128),
-            nn.Linear(in_features=128, out_features=64),
-            nn.ReLU(),
-            nn.BatchNorm1d(64),
-            nn.Linear(in_features=64, out_features=64),
-            nn.ReLU(),
-            nn.BatchNorm1d(64),
-            nn.Linear(in_features=64, out_features=32),
-            nn.ReLU(),
-            nn.BatchNorm1d(32),
-            nn.Linear(in_features=32, out_features=1),
-            nn.Sigmoid()
+            nn.BatchNorm1d(self.out_features),
+            nn.Dropout(dropout),
         )
-        self.embedding_model = embedding_model
+
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -55,18 +75,66 @@ class Avitor(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
+    def forward(self, input):
+        return self.fc(input)
+
+
+class AvitorCat(nn.Module):
+    def __init__(self, token_len, embedding_size=4):
+        super(AvitorCat, self).__init__()
+        self.n_embedding_layers = len(token_len)
+        self.embedding_layers = [nn.Embedding(int(tl) + 1, embedding_size) for tl in token_len]
+        for i, layer in enumerate(self.embedding_layers):
+            self.add_module(f"category_layer_{i}", layer)
+
+        self.out_features = self.n_embedding_layers * embedding_size
+
+        for m in self.modules():
+            if isinstance(m, nn.Embedding):
+                nn.init.xavier_normal_(m.weight)
+
     def forward(self, x):
-        embedding_data = x[:, :self.embedding_model.n_embedding_layers].type("torch.LongTensor")
-        embedding_data = utils.to_gpu(embedding_data)
+        return [self.embedding_layers[i](x[:, i]) for i in range(self.n_embedding_layers)]
 
-        embedding_out = self.embedding_model(embedding_data)
-        embedding_out = torch.cat(embedding_out, 1)
 
-        # linear data
-        linear_data = x[:, self.embedding_model.n_embedding_layers:].type("torch.FloatTensor")
-        linear_data = utils.to_gpu(linear_data)
+class Avitor(nn.Module):
+    def __init__(self, num_model, cat_model, text_model):
+        super(Avitor, self).__init__()
+        self.num_model = num_model
+        self.cat_model = cat_model
+        self.text_model = text_model
 
-        all_features = torch.cat([embedding_out, linear_data], 1)
+        self.in_features = self.num_model.out_features + self.cat_model.out_features + self.text_model.out_features
+
+        self.fc = nn.Sequential(
+            nn.BatchNorm1d(self.in_features),
+            nn.Linear(in_features=self.in_features, out_features=50),
+            nn.ReLU(),
+            nn.BatchNorm1d(50),
+            nn.Linear(in_features=50, out_features=1),
+            nn.Sigmoid()
+        )
+
+
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+
+    def forward(self, X_num, X_cat, X_des, X_title):
+        X_num = utils.to_gpu(X_num)
+        X_cat = utils.to_gpu(X_cat)
+        X_des = utils.to_gpu(X_des)
+        X_title = utils.to_gpu(X_title)
+
+        out_num = self.num_model(X_num)
+        out_cat = self.cat_model(X_cat)
+        out_txt = self.text_model([X_des, X_title])
+
+        all_features = torch.cat([out_num, out_cat, out_txt], 1)
         all_features = utils.to_gpu(all_features)
 
         return self.fc(all_features)

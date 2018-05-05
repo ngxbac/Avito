@@ -25,25 +25,51 @@ class rmse(nn.Module):
         return torch.sqrt(torch.mean((y-y_hat).pow(2)))
 
 
-def train_normal(config, X, y, token_len):
+def train_normal(config, X_num, X_cat, X_des, X_title, y, token_len):
     # Create train/valid dataset and dataloader
-    X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.2, random_state=1700)
-    train_dataset = d.NumpyDataset(X_train, y_train)
+    indicates = range(X_num.shape[0])
+    _, _, _, _, train_indicates, test_indicates = train_test_split(X_num, y, indicates, test_size=0.2, random_state=1700)
+
+    X_train_num = X_num[train_indicates]
+    X_train_cat = X_cat[train_indicates]
+    X_train_des = X_des[train_indicates]
+    X_train_title = X_title[train_indicates]
+
+    y_train = y[train_indicates]
+    train_dataset = d.AvitoDataset(X_train_num, X_train_cat,
+                                   X_train_des, X_train_title, y_train)
     train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True)
 
-    valid_dataset = d.NumpyDataset(X_valid, y_valid)
+    X_val_num = X_num[test_indicates]
+    X_val_cat = X_cat[test_indicates]
+    X_val_des = X_des[test_indicates]
+    X_val_title = X_title[test_indicates]
+    y_valid = y[test_indicates]
+    valid_dataset = d.AvitoDataset(X_val_num, X_val_cat,
+                                   X_val_des, X_val_title, y_valid)
     valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], shuffle=True)
 
-    embedding_size, data_dim = config["embedding_size"], X_train.shape[1]
-    n_embedding_layer = len(token_len)
-    n_fc_in_features = n_embedding_layer * embedding_size + data_dim - n_embedding_layer
+    embedding_size = config["embedding_size"]
+    # Category model
+    cat_model = models.AvitorCat(token_len, embedding_size)
+    print("[+] Category model")
+    print(cat_model)
 
-    # Embedding model
-    embedding_model = models.AvitorEmbedding(token_len, embedding_size)
-    # print(embedding_model)
+    # Numeric model
+    num_model = models.AvitorNum(X_train_num.shape[1])
+    print("[+] Numeric model")
+    print(num_model)
+
+    # Text model
+    text_model = models.AvitorText([X_train_des.shape[1], X_train_title.shape[1]],
+                                   drop_outs=[0.2, 0.2])
+    print("[+] Text model")
+    print(text_model)
 
     # FC model
-    model = models.Avitor(embedding_model, n_fc_in_features)
+    model = models.Avitor(num_model, cat_model, text_model)
+    print("[+] Summary model")
+    print(model)
     # print(model)
 
     # MSE loss and optimizer
@@ -75,8 +101,6 @@ def train_normal(config, X, y, token_len):
     print("[+] Model name " + model_name)
     print("[+] Start at epoch {}".format(start_epoch))
     print("[+] Best val: {}".format(best_val))
-    print("[+] Number of embedding layer: {}".format(n_embedding_layer))
-    print("[+] Total features: {}".format(data_dim))
 
     for epoch in range(config["epoch"]):
         utils.train(epoch, train_dataloader, model, criterion, optimizer)
@@ -101,30 +125,50 @@ def train_normal(config, X, y, token_len):
         }, is_best, model_name, epoch_ckp, best_ckp)
 
 
-def train_fold(config, n_folds, X, y, token_len):
+def train_fold(config, n_folds, X_num, X_cat, X_des, X_title, y, token_len):
     skf = KFold(n_folds)
-    for fold, (train_index, test_index) in enumerate(skf.split(X)):
+    for fold, (train_index, test_index) in enumerate(skf.split(X_num)):
         print("[+] Fold: {}".format(fold))
-        X_train = X[train_index]
+        X_train_num = X_num[train_index]
+        X_train_cat = X_cat[train_index]
+        X_train_des = X_des[train_index]
+        X_train_title = X_title[train_index]
+
         y_train = y[train_index]
-        train_dataset = d.NumpyDataset(X_train, y_train)
+        train_dataset = d.AvitoDataset(X_train_num, X_train_cat,
+                                       X_train_des, X_train_title, y_train)
         train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True)
 
-        X_valid = X[test_index]
+        X_val_num = X_num[test_index]
+        X_val_cat = X_cat[test_index]
+        X_val_des = X_des[test_index]
+        X_val_title = X_title[test_index]
         y_valid = y[test_index]
-        valid_dataset = d.NumpyDataset(X_valid, y_valid)
+        valid_dataset = d.AvitoDataset(X_val_num, X_val_cat,
+                                       X_val_des, X_val_title, y_valid)
         valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], shuffle=True)
 
-        embedding_size, data_dim = config["embedding_size"], X_train.shape[1]
-        n_embedding_layer = len(token_len)
-        n_fc_in_features = n_embedding_layer * embedding_size + data_dim - n_embedding_layer
-        # Embedding model
-        embedding_model = models.AvitorEmbedding(token_len, embedding_size)
-        # print(embedding_model)
+        embedding_size = config["embedding_size"]
+        # Category model
+        cat_model = models.AvitorCat(token_len, embedding_size)
+        print("[+] Category model")
+        print(cat_model)
+
+        # Numeric model
+        num_model = models.AvitorNum(X_train_num.shape[1])
+        print("[+] Numeric model")
+        print(num_model)
+
+        # Text model
+        text_model = models.AvitorText([X_train_des.shape[1], X_train_title.shape[1]],
+                                       drop_outs = [0.2, 0.2])
+        print("[+] Text model")
+        print(text_model)
 
         # FC model
-        model = models.Avitor(embedding_model, n_fc_in_features)
-        # print(model)
+        model = models.Avitor(num_model, cat_model, text_model)
+        print("[+] Summary model")
+        print(model)
 
         # MSE loss and optimizer
         criterion = nn.MSELoss()
@@ -172,15 +216,25 @@ def main():
     extracted_features_root = config["extracted_features"]
     # Load data and token len of embedding layers
     print("[+] Load features ...")
-    X = utils.load_features(extracted_features_root, "X_train")
     y = utils.load_features(extracted_features_root, "y_train")
     token_len = utils.load_features(extracted_features_root, "token_len")
 
+    X_train_num = utils.load_features(extracted_features_root, "X_train_num")
+    X_train_cat = utils.load_features(extracted_features_root, "X_train_cat")
+    X_train_desc = utils.load_features(extracted_features_root, "X_train_desc").any()
+    X_train_title = utils.load_features(extracted_features_root, "X_train_title").any()
+
     n_folds = config["n_fold"]
     if n_folds:
-        train_fold(config, n_folds, X, y, token_len)
+        train_fold(config, n_folds,
+                   X_train_num, X_train_cat,
+                   X_train_desc, X_train_title,
+                   y, token_len)
     else:
-        train_normal(config, X, y, token_len)
+        train_normal(config,
+                   X_train_num, X_train_cat,
+                   X_train_desc, X_train_title,
+                   y, token_len)
 
 if __name__ == '__main__':
     main()

@@ -41,17 +41,17 @@ class AverageMeter(object):
 def train(epoch, loader: DataLoader, model: nn.Module, criterion: nn.Module, optimizer: optim.Optimizer):
     model.train()
 
-    # pbar = tqdm(enumerate(loader), total=len(loader))
+    pbar = tqdm(enumerate(loader), total=len(loader))
     losses = AverageMeter()
 
-    for batch_id, (data, label) in enumerate(loader):
+    for batch_id, (X_num, X_cat, X_des, X_title, label) in pbar:
         optimizer.zero_grad()
-        batch_size = data.size(0)
+        batch_size = X_num.size(0)
 
         # data = to_gpu(data)
         label = to_gpu(label)
 
-        output = model(data)
+        output = model(X_num, X_cat, X_des, X_title)
         loss = criterion(output, label)
         # measure accuracy and record loss
         losses.update(loss.item(), batch_size)
@@ -75,14 +75,13 @@ def test(epoch, test_loader, model, criterion):
     # switch to evaluation mode
     model.eval()
     with torch.no_grad():
-        # pbar = tqdm(enumerate(test_loader), total=len(test_loader))
-        for batch_idx, (data, label) in enumerate(test_loader):
-            batch_size = data.size(0)
+        pbar = tqdm(enumerate(test_loader), total=len(test_loader))
+        for batch_idx, (X_num, X_cat, X_des, X_title, label) in pbar:
+            batch_size = X_num.size(0)
 
-            data = to_gpu(data)
             label = to_gpu(label)
 
-            output = model(data)
+            output = model(X_num, X_cat, X_des, X_title)
             loss = criterion(output, label)
             # measure accuracy and record loss
             losses.update(loss.item(), batch_size)
