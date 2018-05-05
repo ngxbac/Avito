@@ -14,6 +14,7 @@ import models
 import datasets as d
 import utils
 import json
+from tqdm import tqdm
 
 
 def predict_fold(config, n_folds, X_num, X_cat, X_des, X_title, token_len):
@@ -66,8 +67,9 @@ def predict_fold(config, n_folds, X_num, X_cat, X_des, X_title, token_len):
 
         model.eval()
         preds = []
-        for batch_id, (data, _) in enumerate(test_dataloader):
-            output = model(data)
+        pbar = tqdm(enumerate(test_dataloader), total=len(test_dataloader))
+        for batch_id, (X_num, X_cat, X_des, X_title, _) in pbar:
+            output = model(X_num, X_cat, X_des, X_title)
             preds += output.data.cpu().numpy().tolist()
 
         preds = [p[0] for p in preds]
@@ -135,8 +137,9 @@ def predict_one(config, X_num, X_cat, X_des, X_title, token_len):
 
     preds = []
     predict_root = config["predict_root"]
-    for batch_id, (data, _) in enumerate(test_dataloader):
-        output = model(data)
+    pbar = tqdm(enumerate(test_dataloader), total=len(test_dataloader))
+    for batch_id, (X_num, X_cat, X_des, X_title, _) in pbar:
+        output = model(X_num, X_cat, X_des, X_title)
         preds += output.data.cpu().numpy().tolist()
 
     preds = [p[0] for p in preds]
