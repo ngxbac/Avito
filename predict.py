@@ -20,7 +20,8 @@ from tqdm import tqdm
 def predict_fold(config, n_folds, X_num, X_cat, X_des, X_title, token_len):
     test_dataset = d.AvitoDataset(X_num, X_cat,
                                   X_des, X_title, None)
-    test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False)
+    test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], 
+                                 num_workers = 8, shuffle=False)
     preds_all = []
     predict_root = config["predict_root"]
     for fold in range(n_folds):
@@ -89,7 +90,8 @@ def predict_fold(config, n_folds, X_num, X_cat, X_des, X_title, token_len):
 def predict_one(config, X_num, X_cat, X_des, X_title, token_len):
     test_dataset = d.AvitoDataset(X_num, X_cat,
                                   X_des, X_title, None)
-    test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False)
+    test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], 
+                                 num_workers = 8, shuffle=False)
 
     embedding_size = config["embedding_size"]
     # Category model

@@ -120,7 +120,7 @@ def title_features(df, n_comp=3):
     df["title_nwords"] = df["title"].apply(lambda x: len(x.split()))
     num_columns.append("title_nwords")
 
-    tfidf_vec = TfidfVectorizer(ngram_range=(1, 1), max_features=3000)
+    tfidf_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=6000)
     tfidf_vec.fit(df['title'].values.tolist())
     tfidf = tfidf_vec.transform(df['title'].values.tolist())
 
@@ -146,7 +146,7 @@ def description_features(df, n_comp=3):
     df["desc_nwords"] = df["description"].apply(lambda x: len(x.split()))
     num_columns.append("desc_nwords")
 
-    tfidf_vec = TfidfVectorizer(ngram_range=(1, 1), max_features=3000)
+    tfidf_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=6000)
     tfidf_vec.fit(df['description'].values.tolist())
     tfidf = tfidf_vec.transform(df['description'].values.tolist())
 
