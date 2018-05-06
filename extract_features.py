@@ -135,7 +135,7 @@ def title_features(df, n_comp=3):
     # df["title_nwords"] = df["title"].apply(lambda x: len(x.split()))
     # num_columns.append("title_nwords")
 
-    tfidf_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=7000, **tfidf_para)
+    tfidf_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=10000)
     tfidf_vec.fit(df['title'].values.tolist())
     tfidf = tfidf_vec.transform(df['title'].values.tolist())
 
@@ -161,7 +161,7 @@ def description_features(df, n_comp=3):
     # df["desc_nwords"] = df["description"].apply(lambda x: len(x.split()))
     # num_columns.append("desc_nwords")
 
-    tfidf_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=15000, **tfidf_para)
+    tfidf_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=10000)
     tfidf_vec.fit(df['description'].values.tolist())
     tfidf = tfidf_vec.transform(df['description'].values.tolist())
 
@@ -181,7 +181,7 @@ def description_features(df, n_comp=3):
 
 
 def extract_params_tex_features(df):
-    count_vec = CountVectorizer(ngram_range=(1, 2), max_features=6000)
+    count_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=6000)
     count_vec.fit(df["text_feat"].values.tolist())
     tfidf = count_vec.transform(df["text_feat"].values.tolist())
 
@@ -191,7 +191,7 @@ def extract_params_tex_features(df):
 def extract_text_features_as_numeric(df, columns=text_cols):
     for cols in columns:
         df[cols] = df[cols].astype(str)
-        df[cols] = df[cols].astype(str).fillna('nicapotato')  # FILL NA
+        df[cols] = df[cols].astype(str).fillna('NA')  # FILL NA
         df[cols] = df[cols].str.lower()  # Lowercase all text, so that capitalized words dont get treated differently
         df[cols + '_num_chars'] = df[cols].apply(len)  # Count number of Characters
         df[cols + '_num_words'] = df[cols].apply(lambda comment: len(comment.split()))  # Count number of Words
@@ -199,10 +199,10 @@ def extract_text_features_as_numeric(df, columns=text_cols):
         df[cols + '_words_vs_unique'] = df[cols + '_num_unique_words'] / df[
             cols + '_num_words'] * 100  # Count Unique Words
 
-        num_columns.append(cols + "_num_chars")
+        #num_columns.append(cols + "_num_chars")
         num_columns.append(cols + "_num_words")
-        num_columns.append(cols + "_num_unique_words")
-        num_columns.append(cols + "_words_vs_unique")
+        #num_columns.append(cols + "_num_unique_words")
+        #num_columns.append(cols + "_words_vs_unique")
 
     return df
 
