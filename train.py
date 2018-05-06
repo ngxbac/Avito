@@ -60,11 +60,11 @@ def train_normal(config, X_num, X_cat, X_text, y, token_len):
     print("[+] Numeric model")
     print(num_model)
 
-    text_input_shapes = [text.shape[1] for text in X_train_text]
+    text_input_shapes = [text.shape[1] for text in X_text]
 
     # Text model
     text_model = models.AvitorText(text_input_shapes,
-                                   drop_outs=[0.5, 0.5])
+                                   drop_outs=[0.5, 0.5, 0.5])
     print("[+] Text model")
     print(text_model)
 
@@ -161,11 +161,11 @@ def train_fold(config, n_folds, X_num, X_cat, X_text, y, token_len):
         print("[+] Numeric model")
         print(num_model)
 
-        text_input_shapes = [text.shape[1] for text in X_val_text]
+        text_input_shapes = [text.shape[1] for text in X_text]
 
         # Text model
         text_model = models.AvitorText(text_input_shapes,
-                                       drop_outs = [0.5, 0.5])
+                                       drop_outs = [0.5, 0.5, 0.5])
         print("[+] Text model")
         print(text_model)
 

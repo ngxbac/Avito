@@ -41,7 +41,7 @@ def predict_fold(config, n_folds, X_num, X_cat, X_text, token_len):
 
         # Text model
         text_model = models.AvitorText(text_input_shapes,
-                                       drop_outs=[0.5, 0.5])
+                                       drop_outs=[0.5, 0.5, 0.5])
         print("[+] Text model")
         print(text_model)
 
@@ -109,7 +109,7 @@ def predict_one(config, X_num, X_cat, X_text, token_len):
     text_input_shapes = [text.shape[1] for text in X_text]
     # Text model
     text_model = models.AvitorText(text_input_shapes,
-                                   drop_outs=[0.5, 0.5])
+                                   drop_outs=[0.5, 0.5, 0.5])
     print("[+] Text model")
     print(text_model)
 

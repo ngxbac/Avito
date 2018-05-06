@@ -181,7 +181,7 @@ def description_features(df, n_comp=3):
 
 
 def extract_params_tex_features(df):
-    count_vec = CountVectorizer(ngram_range=(1, 2), max_features=6000, **tfidf_para)
+    count_vec = CountVectorizer(ngram_range=(1, 2), max_features=6000)
     count_vec.fit(df["text_feat"].values.tolist())
     tfidf = count_vec.transform(df["text_feat"].values.tolist())
 
@@ -241,7 +241,7 @@ def main():
 
     with utils.timer("Extract text features as numeric"):
         print("[+] Extract text features as numeric ...")
-        df['param_text_feat'] = df.apply(lambda row: ' '.join([
+        df['text_feat'] = df.apply(lambda row: ' '.join([
             str(row['param_1']),
             str(row['param_2']),
             str(row['param_3'])]), axis=1)  # Group Param Features
