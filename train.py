@@ -61,10 +61,11 @@ def train_normal(config, X_num, X_cat, X_text, y, token_len):
     print(num_model)
 
     text_input_shapes = [text.shape[1] for text in X_text]
+    dropouts = [0.5 for text in X_text]
 
     # Text model
     text_model = models.AvitorText(text_input_shapes,
-                                   drop_outs=[0.5, 0.5, 0.5])
+                                   drop_outs=dropouts)
     print("[+] Text model")
     print(text_model)
 
@@ -162,10 +163,11 @@ def train_fold(config, n_folds, X_num, X_cat, X_text, y, token_len):
         print(num_model)
 
         text_input_shapes = [text.shape[1] for text in X_text]
+        dropouts = [0.5 for text in X_text]
 
         # Text model
         text_model = models.AvitorText(text_input_shapes,
-                                       drop_outs = [0.5, 0.5, 0.5])
+                                       drop_outs=dropouts)
         print("[+] Text model")
         print(text_model)
 
@@ -227,9 +229,10 @@ def main():
     X_train_cat = utils.load_features(extracted_features_root, "X_train_cat")
     X_train_desc = utils.load_features(extracted_features_root, "X_train_desc").any()
     X_train_title = utils.load_features(extracted_features_root, "X_train_title").any()
-    X_train_param = utils.load_features(extracted_features_root, "X_train_param").any()
+    #X_train_param = utils.load_features(extracted_features_root, "X_train_param").any()
 
-    X_train_text = [X_train_desc, X_train_title, X_train_param]
+    #X_train_text = [X_train_desc, X_train_title, X_train_param]
+    X_train_text = [X_train_desc, X_train_title]
 
     n_folds = config["n_fold"]
     if n_folds:
