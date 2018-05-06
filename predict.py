@@ -17,9 +17,9 @@ import json
 from tqdm import tqdm
 
 
-def predict_fold(config, n_folds, X_num, X_cat, X_des, X_title, token_len):
+def predict_fold(config, n_folds, X_num, X_cat, X_text, token_len):
     test_dataset = d.AvitoDataset(X_num, X_cat,
-                                  X_des, X_title, None)
+                                  X_text, None)
     test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], 
                                  num_workers = 8, shuffle=False)
     preds_all = []
@@ -37,9 +37,11 @@ def predict_fold(config, n_folds, X_num, X_cat, X_des, X_title, token_len):
         print("[+] Numeric model")
         print(num_model)
 
+        text_input_shapes = [text.shape[1] for text in X_text]
+
         # Text model
-        text_model = models.AvitorText([X_des.shape[1], X_title.shape[1]],
-                                       drop_outs=[0.2, 0.2])
+        text_model = models.AvitorText(text_input_shapes,
+                                       drop_outs=[0.5, 0.5])
         print("[+] Text model")
         print(text_model)
 
@@ -69,8 +71,8 @@ def predict_fold(config, n_folds, X_num, X_cat, X_des, X_title, token_len):
         model.eval()
         preds = []
         pbar = tqdm(enumerate(test_dataloader), total=len(test_dataloader))
-        for batch_id, (X_num, X_cat, X_des, X_title, _) in pbar:
-            output = model(X_num, X_cat, X_des, X_title)
+        for batch_id, (X_num, X_cat, X_text, _) in pbar:
+            output = model(X_num, X_cat, X_text)
             preds += output.data.cpu().numpy().tolist()
 
         preds = [p[0] for p in preds]
@@ -87,9 +89,9 @@ def predict_fold(config, n_folds, X_num, X_cat, X_des, X_title, token_len):
     utils.save_csv(submission, predict_root, f"submission_{model_name}_avg.csv")
 
 
-def predict_one(config, X_num, X_cat, X_des, X_title, token_len):
+def predict_one(config, X_num, X_cat, X_text, token_len):
     test_dataset = d.AvitoDataset(X_num, X_cat,
-                                  X_des, X_title, None)
+                                  X_text, None)
     test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], 
                                  num_workers = 8, shuffle=False)
 
@@ -104,9 +106,10 @@ def predict_one(config, X_num, X_cat, X_des, X_title, token_len):
     print("[+] Numeric model")
     print(num_model)
 
+    text_input_shapes = [text.shape[1] for text in X_text]
     # Text model
-    text_model = models.AvitorText([X_des.shape[1], X_title.shape[1]],
-                                   drop_outs=[0.2, 0.2])
+    text_model = models.AvitorText(text_input_shapes,
+                                   drop_outs=[0.5, 0.5])
     print("[+] Text model")
     print(text_model)
 
@@ -140,8 +143,8 @@ def predict_one(config, X_num, X_cat, X_des, X_title, token_len):
     preds = []
     predict_root = config["predict_root"]
     pbar = tqdm(enumerate(test_dataloader), total=len(test_dataloader))
-    for batch_id, (X_num, X_cat, X_des, X_title, _) in pbar:
-        output = model(X_num, X_cat, X_des, X_title)
+    for batch_id, (X_num, X_cat, X_text, _) in pbar:
+        output = model(X_num, X_cat, X_text)
         preds += output.data.cpu().numpy().tolist()
 
     preds = [p[0] for p in preds]
@@ -160,17 +163,21 @@ def main():
     X_test_cat = utils.load_features(extracted_features_root, "X_test_cat")
     X_test_desc = utils.load_features(extracted_features_root, "X_test_desc").any()
     X_test_title = utils.load_features(extracted_features_root, "X_test_title").any()
+    X_test_param = utils.load_features(extracted_features_root, "X_test_param").any()
+
     token_len = utils.load_features(extracted_features_root, "token_len")
+
+    X_test_text = [X_test_desc, X_test_title, X_test_param]
 
     n_folds = config["n_fold"]
     if n_folds:
         predict_fold(config, n_folds, X_test_num,
-                    X_test_cat, X_test_desc,
-                    X_test_title, token_len)
+                    X_test_cat, X_test_text,
+                    token_len)
     else:
         predict_one(config, X_test_num,
-                    X_test_cat, X_test_desc,
-                    X_test_title, token_len)
+                    X_test_cat, X_test_text,
+                    token_len)
 
 if __name__ == '__main__':
     main()

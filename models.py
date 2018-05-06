@@ -30,7 +30,7 @@ class AvitorText(nn.Module):
         self.text_inputs = text_inputs
         self.drop_outs = drop_outs
         self.fcs = []
-        self.out_features = 128
+        self.out_features = 512
         self.out_txt_features = 0
         for i, (txt_input, dropout) in enumerate(zip(text_inputs, drop_outs)):
             fc = nn.Sequential(
@@ -133,15 +133,14 @@ class Avitor(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
 
-    def forward(self, X_num, X_cat, X_des, X_title):
+    def forward(self, X_num, X_cat, X_text, X_title):
         X_num = utils.to_gpu(X_num)
         X_cat = utils.to_gpu(X_cat)
-        X_des = utils.to_gpu(X_des)
-        X_title = utils.to_gpu(X_title)
+        X_text = [utils.to_gpu(text) for text in X_text]
 
         out_num = self.num_model(X_num)
         out_cat = self.cat_model(X_cat)
-        out_txt = self.text_model([X_des, X_title])
+        out_txt = self.text_model(X_text)
 
         all_features = torch.cat([out_num, *out_cat, out_txt], 1)
         all_features = utils.to_gpu(all_features)

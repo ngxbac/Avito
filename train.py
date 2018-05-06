@@ -25,29 +25,27 @@ class rmse(nn.Module):
         return torch.sqrt(torch.mean((y-y_hat).pow(2)))
 
 
-def train_normal(config, X_num, X_cat, X_des, X_title, y, token_len):
+def train_normal(config, X_num, X_cat, X_text, y, token_len):
     # Create train/valid dataset and dataloader
     indicates = range(X_num.shape[0])
-    _, _, _, _, train_indicates, test_indicates = train_test_split(X_num, y, indicates, test_size=0.1, random_state=1700)
+    _, _, _, _, train_indicates, test_indicates = train_test_split(X_num, y, indicates, test_size=0.1)
 
     X_train_num = X_num[train_indicates]
     X_train_cat = X_cat[train_indicates]
-    X_train_des = X_des[train_indicates]
-    X_train_title = X_title[train_indicates]
+    X_train_text = [text[train_indicates] for text in X_text]
 
     y_train = y[train_indicates]
     train_dataset = d.AvitoDataset(X_train_num, X_train_cat,
-                                   X_train_des, X_train_title, y_train)
+                                   X_train_text, y_train)
     train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], 
                                   num_workers = 8, shuffle=True)
 
     X_val_num = X_num[test_indicates]
     X_val_cat = X_cat[test_indicates]
-    X_val_des = X_des[test_indicates]
-    X_val_title = X_title[test_indicates]
+    X_val_text = [text[test_indicates] for text in X_text]
     y_valid = y[test_indicates]
     valid_dataset = d.AvitoDataset(X_val_num, X_val_cat,
-                                   X_val_des, X_val_title, y_valid)
+                                   X_val_text, y_valid)
     valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], 
                                   num_workers = 8, shuffle=True)
 
@@ -62,8 +60,10 @@ def train_normal(config, X_num, X_cat, X_des, X_title, y, token_len):
     print("[+] Numeric model")
     print(num_model)
 
+    text_input_shapes = [text.shape[1] for text in X_train_text]
+
     # Text model
-    text_model = models.AvitorText([X_train_des.shape[1], X_train_title.shape[1]],
+    text_model = models.AvitorText(text_input_shapes,
                                    drop_outs=[0.5, 0.5])
     print("[+] Text model")
     print(text_model)
@@ -127,28 +127,26 @@ def train_normal(config, X_num, X_cat, X_des, X_title, y, token_len):
         }, is_best, model_name, epoch_ckp, best_ckp)
 
 
-def train_fold(config, n_folds, X_num, X_cat, X_des, X_title, y, token_len):
+def train_fold(config, n_folds, X_num, X_cat, X_text, y, token_len):
     skf = KFold(n_folds)
     for fold, (train_index, test_index) in enumerate(skf.split(X_num)):
         print("[+] Fold: {}".format(fold))
         X_train_num = X_num[train_index]
         X_train_cat = X_cat[train_index]
-        X_train_des = X_des[train_index]
-        X_train_title = X_title[train_index]
+        X_train_text = [text[train_index] for text in X_text]
 
         y_train = y[train_index]
         train_dataset = d.AvitoDataset(X_train_num, X_train_cat,
-                                       X_train_des, X_train_title, y_train)
+                                       X_train_text, y_train)
         train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], 
                                       num_workers = 8, shuffle=True)
 
         X_val_num = X_num[test_index]
         X_val_cat = X_cat[test_index]
-        X_val_des = X_des[test_index]
-        X_val_title = X_title[test_index]
+        X_val_text = [text[test_index] for text in X_text]
         y_valid = y[test_index]
         valid_dataset = d.AvitoDataset(X_val_num, X_val_cat,
-                                       X_val_des, X_val_title, y_valid)
+                                       X_val_text, y_valid)
         valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], 
                                       num_workers = 8, shuffle=True)
 
@@ -163,8 +161,10 @@ def train_fold(config, n_folds, X_num, X_cat, X_des, X_title, y, token_len):
         print("[+] Numeric model")
         print(num_model)
 
+        text_input_shapes = [text.shape[1] for text in X_val_text]
+
         # Text model
-        text_model = models.AvitorText([X_train_des.shape[1], X_train_title.shape[1]],
+        text_model = models.AvitorText(text_input_shapes,
                                        drop_outs = [0.5, 0.5])
         print("[+] Text model")
         print(text_model)
@@ -227,17 +227,20 @@ def main():
     X_train_cat = utils.load_features(extracted_features_root, "X_train_cat")
     X_train_desc = utils.load_features(extracted_features_root, "X_train_desc").any()
     X_train_title = utils.load_features(extracted_features_root, "X_train_title").any()
+    X_train_param = utils.load_features(extracted_features_root, "X_train_param").any()
+
+    X_train_text = [X_train_desc, X_train_title, X_train_param]
 
     n_folds = config["n_fold"]
     if n_folds:
         train_fold(config, n_folds,
                    X_train_num, X_train_cat,
-                   X_train_desc, X_train_title,
+                   X_train_text,
                    y, token_len)
     else:
         train_normal(config,
                    X_train_num, X_train_cat,
-                   X_train_desc, X_train_title,
+                   X_train_text,
                    y, token_len)
 
 if __name__ == '__main__':

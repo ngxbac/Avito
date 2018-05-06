@@ -5,12 +5,25 @@ import numpy as np
 import os
 from tqdm import tqdm
 
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.decomposition import TruncatedSVD
 from nltk.corpus import stopwords
 import utils
 import gc
 stopWords_rus = stopwords.words('russian')
+
+
+tfidf_para = {
+    "stop_words": stopWords_rus,
+    "analyzer": 'word',
+    "token_pattern": r'\w{1,}',
+    "sublinear_tf": True,
+    "dtype": np.float32,
+    "norm": 'l2',
+    #"min_df":5,
+    #"max_df":.9,
+    "smooth_idf":False
+}
 
 all_columns = [
     "item_id", "user_id", "region", "city",
@@ -41,6 +54,8 @@ agg_columns = [
 ]
 
 num_columns = ["item_seq_number"]
+
+text_cols = ["description", "text_feat", "title"]
 
 config = json.load(open("config.json"))
 
@@ -116,11 +131,11 @@ def agg_features(train_df, test_df, columns=agg_columns):
 
 
 def title_features(df, n_comp=3):
-    df["title"] = df["title"].fillna(' ')
-    df["title_nwords"] = df["title"].apply(lambda x: len(x.split()))
-    num_columns.append("title_nwords")
+    # df["title"] = df["title"].fillna(' ')
+    # df["title_nwords"] = df["title"].apply(lambda x: len(x.split()))
+    # num_columns.append("title_nwords")
 
-    tfidf_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=6000)
+    tfidf_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=7000, **tfidf_para)
     tfidf_vec.fit(df['title'].values.tolist())
     tfidf = tfidf_vec.transform(df['title'].values.tolist())
 
@@ -141,12 +156,12 @@ def title_features(df, n_comp=3):
 
 
 def description_features(df, n_comp=3):
-    df["description"].fillna("NA", inplace=True)
-    df["description"] = df["description"].astype(str)
-    df["desc_nwords"] = df["description"].apply(lambda x: len(x.split()))
-    num_columns.append("desc_nwords")
+    # df["description"].fillna("NA", inplace=True)
+    # df["description"] = df["description"].astype(str)
+    # df["desc_nwords"] = df["description"].apply(lambda x: len(x.split()))
+    # num_columns.append("desc_nwords")
 
-    tfidf_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=6000)
+    tfidf_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=15000, **tfidf_para)
     tfidf_vec.fit(df['description'].values.tolist())
     tfidf = tfidf_vec.transform(df['description'].values.tolist())
 
@@ -163,6 +178,33 @@ def description_features(df, n_comp=3):
 
     df = pd.concat([df, svd_df], axis=1)
     return df, tfidf
+
+
+def extract_params_tex_features(df):
+    count_vec = CountVectorizer(ngram_range=(1, 2), max_features=6000, **tfidf_para)
+    count_vec.fit(df["text_feat"].values.tolist())
+    tfidf = count_vec.transform(df["text_feat"].values.tolist())
+
+    return tfidf
+
+
+def extract_text_features_as_numeric(df, columns=text_cols):
+    for cols in columns:
+        df[cols] = df[cols].astype(str)
+        df[cols] = df[cols].astype(str).fillna('nicapotato')  # FILL NA
+        df[cols] = df[cols].str.lower()  # Lowercase all text, so that capitalized words dont get treated differently
+        df[cols + '_num_chars'] = df[cols].apply(len)  # Count number of Characters
+        df[cols + '_num_words'] = df[cols].apply(lambda comment: len(comment.split()))  # Count number of Words
+        df[cols + '_num_unique_words'] = df[cols].apply(lambda comment: len(set(w for w in comment.split())))
+        df[cols + '_words_vs_unique'] = df[cols + '_num_unique_words'] / df[
+            cols + '_num_words'] * 100  # Count Unique Words
+
+        num_columns.append(cols + "_num_chars")
+        num_columns.append(cols + "_num_words")
+        num_columns.append(cols + "_num_unique_words")
+        num_columns.append(cols + "_words_vs_unique")
+
+    return df
 
 
 def main():
@@ -197,6 +239,18 @@ def main():
         print("[+] Convert date to day of week ...")
         df = date_to_dow(df)
 
+    with utils.timer("Extract text features as numeric"):
+        print("[+] Extract text features as numeric ...")
+        df['param_text_feat'] = df.apply(lambda row: ' '.join([
+            str(row['param_1']),
+            str(row['param_2']),
+            str(row['param_3'])]), axis=1)  # Group Param Features
+        df = extract_text_features_as_numeric(df)
+
+    with utils.timer("Extract params text features"):
+        print("[+] Extract params text features ...")
+        param_tfidf = extract_params_tex_features(df)
+
     with utils.timer("Extract title features"):
         print("[+] Extract title features ...")
         df, title_tfidf = title_features(df)
@@ -228,7 +282,6 @@ def main():
     X_test_cat = np.array(test_token_data, dtype=np.int).T
     print(f"[+] Cat {X_train_cat.shape}/{X_test_cat.shape}")
 
-
     X_train_desc = description_tfidf[:n_train]
     X_test_desc = description_tfidf[n_train:]
     print(f"[+] Description {X_train_desc.shape}/{X_test_desc.shape}")
@@ -236,6 +289,10 @@ def main():
     X_train_title = title_tfidf[:n_train]
     X_test_title = title_tfidf[n_train:]
     print(f"[+] Title {X_train_title.shape}/{X_test_title.shape}")
+
+    X_train_param = param_tfidf[:n_train]
+    X_test_param = param_tfidf[n_train:]
+    print(f"[+] Param {X_train_param.shape}/{X_test_param.shape}")
 
     print("[+] Save features ...")
 
@@ -267,6 +324,12 @@ def main():
 
     utils.save_features(X_test_title, root=extracted_features_root,
                        name="X_test_title")
+
+    utils.save_features(X_train_param, root=extracted_features_root,
+                       name="X_train_param")
+
+    utils.save_features(X_test_param, root=extracted_features_root,
+                       name="X_test_param")
 
     utils.save_features(y_train, root=extracted_features_root,
                        name="y_train")

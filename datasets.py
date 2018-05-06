@@ -19,12 +19,11 @@ class NumpyDataset(data.Dataset):
 
 
 class AvitoDataset(data.Dataset):
-    def __init__(self, X_num, X_cat, X_des, X_title, y):
+    def __init__(self, X_num, X_cat, X_text, y):
         super(AvitoDataset, self).__init__()
         self.X_num = X_num
         self.X_cat = X_cat
-        self.X_des = X_des
-        self.X_title = X_title
+        self.X_text = X_text
         self.Y = y
 
     def __len__(self):
@@ -33,7 +32,7 @@ class AvitoDataset(data.Dataset):
     def __getitem__(self, index):
         X_num_tensor = torch.from_numpy(self.X_num[index, :])
         X_cat_tensor = torch.from_numpy(self.X_cat[index, :])
-        X_des_tensor = torch.from_numpy(np.array(self.X_des[index, :].toarray())).type("torch.FloatTensor").squeeze()
-        X_title_tensor = torch.from_numpy(np.array(self.X_title[index, :].toarray())).type("torch.FloatTensor").squeeze()
+        X_text_tensor = [torch.from_numpy(np.array(text[index, :].toarray())).type("torch.FloatTensor").squeeze() for
+                         text in self.X_text]
         Y_tensor = torch.Tensor([self.Y[index]]) if self.Y is not None else torch.FloatTensor([0])
-        return X_num_tensor, X_cat_tensor, X_des_tensor, X_title_tensor, Y_tensor
+        return X_num_tensor, X_cat_tensor, X_text_tensor, Y_tensor
