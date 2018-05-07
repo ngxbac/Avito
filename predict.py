@@ -38,10 +38,10 @@ def predict_fold(config, n_folds, X_num, X_cat, X_text, token_len):
         print(num_model)
 
         text_input_shapes = [text.shape[1] for text in X_text]
-
+        dropouts = [0.5 for text in X_text]
         # Text model
         text_model = models.AvitorText(text_input_shapes,
-                                       drop_outs=[0.5, 0.5, 0.5])
+                                       drop_outs=dropouts)
         print("[+] Text model")
         print(text_model)
 
@@ -107,9 +107,10 @@ def predict_one(config, X_num, X_cat, X_text, token_len):
     print(num_model)
 
     text_input_shapes = [text.shape[1] for text in X_text]
+    dropouts = [0.5 for text in X_text]
     # Text model
     text_model = models.AvitorText(text_input_shapes,
-                                   drop_outs=[0.5, 0.5, 0.5])
+                                   drop_outs=dropouts)
     print("[+] Text model")
     print(text_model)
 
@@ -163,11 +164,12 @@ def main():
     X_test_cat = utils.load_features(extracted_features_root, "X_test_cat")
     X_test_desc = utils.load_features(extracted_features_root, "X_test_desc").any()
     X_test_title = utils.load_features(extracted_features_root, "X_test_title").any()
-    X_test_param = utils.load_features(extracted_features_root, "X_test_param").any()
+    #X_test_param = utils.load_features(extracted_features_root, "X_test_param").any()
 
     token_len = utils.load_features(extracted_features_root, "token_len")
 
-    X_test_text = [X_test_desc, X_test_title, X_test_param]
+    #X_test_text = [X_test_desc, X_test_title, X_test_param]
+    X_test_text = [X_test_desc, X_test_title]
 
     n_folds = config["n_fold"]
     if n_folds:
