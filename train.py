@@ -38,7 +38,7 @@ def train_normal(config, X_num, X_cat, X_text, y, token_len):
     train_dataset = d.AvitoDataset(X_train_num, X_train_cat,
                                    X_train_text, y_train)
     train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], 
-                                  num_workers = 8, shuffle=True)
+                                  num_workers = config["n_workers"], shuffle=True)
 
     X_val_num = X_num[test_indicates]
     X_val_cat = X_cat[test_indicates]
@@ -47,7 +47,7 @@ def train_normal(config, X_num, X_cat, X_text, y, token_len):
     valid_dataset = d.AvitoDataset(X_val_num, X_val_cat,
                                    X_val_text, y_valid)
     valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], 
-                                  num_workers = 8, shuffle=True)
+                                  num_workers = config["n_workers"], shuffle=True)
 
     embedding_size = config["embedding_size"]
     # Category model
@@ -140,7 +140,7 @@ def train_fold(config, n_folds, X_num, X_cat, X_text, y, token_len):
         train_dataset = d.AvitoDataset(X_train_num, X_train_cat,
                                        X_train_text, y_train)
         train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], 
-                                      num_workers = 8, shuffle=True)
+                                      num_workers = config["n_workers"], shuffle=True)
 
         X_val_num = X_num[test_index]
         X_val_cat = X_cat[test_index]
@@ -149,7 +149,7 @@ def train_fold(config, n_folds, X_num, X_cat, X_text, y, token_len):
         valid_dataset = d.AvitoDataset(X_val_num, X_val_cat,
                                        X_val_text, y_valid)
         valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], 
-                                      num_workers = 8, shuffle=True)
+                                      num_workers = config["n_workers"], shuffle=True)
 
         embedding_size = config["embedding_size"]
         # Category model
