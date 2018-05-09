@@ -35,6 +35,6 @@ class AvitoDataset(data.Dataset):
         X_cat_tensor = torch.from_numpy(self.X_cat[index, :])
         X_text_tensor = [torch.from_numpy(np.array(text[index, :].toarray())).type("torch.FloatTensor").squeeze() for
                          text in self.X_text]
-        X_word_tensor = [torch.from_numpy(word[index, :]) for word in self.X_word]
+        X_word_tensor = [torch.from_numpy(word[index, :]).type("torch.LongTensor") for word in self.X_word]
         Y_tensor = torch.Tensor([self.Y[index]]) if self.Y is not None else torch.FloatTensor([0])
         return X_num_tensor, X_cat_tensor, X_text_tensor, X_word_tensor, Y_tensor
