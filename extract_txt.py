@@ -1,79 +1,65 @@
-import os
 import pandas as pd
 import numpy as np
-import glob
-import nltk
-import gensim
 import json
 import gc
 import utils
 
-from sklearn.decomposition import TruncatedSVD
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer # For text feature
-from nltk.corpus import stopwords # identify stopwords
-stopWords = stopwords.words('russian')
+from keras.preprocessing import text, sequence
 
 
-def load_csv(csv_path):
-    df = pd.read_csv(csv_path, parse_dates=["activation_date"])
-    # df = df.replace(np.nan, -1, regex=True)
+def load_csv(csv_path, columns):
+    df = pd.read_csv(csv_path, usecols=columns)
     return df
 
 
-def extract_TFIDF(df, columns):
-    tfidfs = []
-    for c in columns:
-        tfidf_vector = TfidfVectorizer(max_features=5000, stop_words = stopWords)
-        # Fill-in missing values
-        df[c] = df[c].fillna(' ')
-        # fit and transform Russian
-        tfidf_vector.fit(df[c])
-        tfidf = tfidf_vector.transform(df['description'])
-        tfidfs.append(tfidf)
-    gc.collect()
-    return tfidfs
-
-
-def extract_SVD(tfidfs, n_comp=3):
-    svds = []
-    for tfidf in tfidfs:
-        svd_obj = TruncatedSVD(n_components=n_comp, algorithm='arpack')
-        svd_obj.fit(tfidf)
-        svd = svd_obj.transform(tfidf)
-        svds.append(svd)
-    return svds
+def preprocessing(df, columns):
+    for cols in columns:
+        df[cols] = df[cols].astype(str)
+        df[cols] = df[cols].astype(str).fillna(' ')  # FILL NA
+        df[cols] = df[cols].str.lower()
+    return df
 
 
 def main():
     # Load json config
     config = json.load(open("config.json"))
 
+    txt_vars = [
+        "title", "description"
+    ]
+
+    extracted_root = config["extracted_features"]
+
+    max_features = 100000  # 50000
+    maxlen = 300
+
     with utils.timer("Load csv"):
         # print("[+] Load csv ...")
-        train_df = load_csv(config["train_csv"])
-        test_df = load_csv(config["test_csv"])
+        train_df = load_csv(config["train_csv"], txt_vars)
+        test_df = load_csv(config["test_csv"], txt_vars)
 
+    n_train = len(train_df)
     df = pd.concat([train_df, test_df])
     del train_df
     del test_df
     gc.collect()
 
-    txt_vars = [
-        "title", "description"
-    ]
+    with utils.timer("Pre-processing"):
+        print("[+] Preprocessing text")
+        df = preprocessing(df, txt_vars)
 
     for txt in txt_vars:
-        df[txt] = df[txt].astype("str")
-
-    with utils.timer("Extract TFIDF ..."):
-        tfidfs = extract_TFIDF(df, txt_vars)
-
-    with utils.timer("Extract SVD ..."):
-        svds = extract_SVD(tfidfs)
-
-    extracted_root = config["extracted_features"]
-    utils.save_features(np.asarray(tfidfs, dtype=np.float32), extracted_root, "TFIDF")
-    utils.save_features(np.asarray(svds, dtype=np.float32), extracted_root, "SVD")
+        with utils.timer(f"Extract {txt}"):
+            print(f"[+] Extract {txt}")
+            tokenizer = text.Tokenizer(num_words=max_features)
+            tokenizer.fit_on_texts(df[txt].tolist())
+            list_tokenized = tokenizer.texts_to_sequences(df[txt].tolist())
+            X_words = sequence.pad_sequences(list_tokenized, maxlen=maxlen)
+            X_train_words = X_words[:n_train, :]
+            X_test_words = X_words[n_train:, :]
+            print(f"[+] Save word features of {txt}")
+            utils.save_features(X_train_words, extracted_root, f"X_train_word_{txt}")
+            utils.save_features(X_test_words, extracted_root, f"X_test_word_{txt}")
 
 
 if __name__ == '__main__':
