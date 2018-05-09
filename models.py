@@ -106,12 +106,53 @@ class AvitorCat(nn.Module):
         return [self.embedding_layers[i](x[:, i]) for i in range(self.n_embedding_layers)]
 
 
+class TensorRotate(nn.Module):
+
+    def forward(self, x):
+        return x.view(x.size(0), x.size(2), x.size(1))
+
+
+class AvitorWord(nn.Module):
+    def __init__(self, max_features, token_len, embedding_size=300):
+        super(AvitorWord, self).__init__()
+        self.max_features = max_features
+        self.embedding_size = embedding_size
+        self.token_len = token_len
+
+        self.n_word_layer = len(token_len)
+
+        self.word_layers = []
+        for i, tkl in enumerate(token_len):
+            word_layer = nn.Sequential(
+                nn.Embedding(self.max_features, self.embedding_size),
+                TensorRotate(),
+                nn.Conv1d(self.embedding_size, 128, kernel_size=3),
+                nn.ReLU(),
+                nn.AdaptiveMaxPool1d(64),
+                Flatten()
+            )
+            self.add_module(f"word_layer_{i}", word_layer)
+            self.word_layers.append(word_layer)
+
+        self.out_features = self.word_layers * 64 * ((self.max_features + 3) // 2 + 1)
+
+        for m in self.modules():
+            if isinstance(m, nn.Embedding):
+                nn.init.xavier_normal_(m.weight)
+            else:
+                nn.init.xavier_normal_(m.weight)
+
+    def forward(self, x):
+        return [self.word_layers[i](x[:, i]) for i in range(self.n_word_layer)]
+
+
 class Avitor(nn.Module):
-    def __init__(self, num_model, cat_model, text_model):
+    def __init__(self, num_model, cat_model, text_model, word_model):
         super(Avitor, self).__init__()
         self.num_model = num_model
         self.cat_model = cat_model
         self.text_model = text_model
+        self.word_model = word_model
 
         self.in_features = self.num_model.out_features + self.cat_model.out_features + self.text_model.out_features
 
@@ -124,7 +165,6 @@ class Avitor(nn.Module):
             nn.Sigmoid()
         )
 
-
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.xavier_normal_(m.weight)
@@ -132,17 +172,18 @@ class Avitor(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-
-    def forward(self, X_num, X_cat, X_text):
+    def forward(self, X_num, X_cat, X_text, X_word):
         X_num = utils.to_gpu(X_num)
         X_cat = utils.to_gpu(X_cat)
         X_text = [utils.to_gpu(text) for text in X_text]
+        X_word = [utils.to_gpu(word) for word in X_word]
 
         out_num = self.num_model(X_num)
         out_cat = self.cat_model(X_cat)
         out_txt = self.text_model(X_text)
+        out_word = self.word_model(X_word)
 
-        all_features = torch.cat([out_num, *out_cat, out_txt], 1)
+        all_features = torch.cat([out_num, *out_cat, out_txt, *out_word], 1)
         all_features = utils.to_gpu(all_features)
 
         return self.fc(all_features)

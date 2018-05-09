@@ -25,7 +25,7 @@ class rmse(nn.Module):
         return torch.sqrt(torch.mean((y-y_hat).pow(2)))
 
 
-def train_normal(config, X_num, X_cat, X_text, y, token_len):
+def train_normal(config, X_num, X_cat, X_text, X_word, y, token_len):
     # Create train/valid dataset and dataloader
     indicates = range(X_num.shape[0])
     _, _, _, _, train_indicates, test_indicates = train_test_split(X_num, y, indicates, test_size=0.1)
@@ -69,8 +69,14 @@ def train_normal(config, X_num, X_cat, X_text, y, token_len):
     print("[+] Text model")
     print(text_model)
 
+    # Word model
+    word_token_len = [word.shape[1] for word in X_word]
+    word_model = models.AvitorWord(max_features=100000, token_len=word_token_len)
+    print("[+] Word model")
+    print(word_model)
+
     # FC model
-    model = models.Avitor(num_model, cat_model, text_model)
+    model = models.Avitor(num_model, cat_model, text_model, word_model)
     print("[+] Summary model")
     print(model)
     # print(model)
@@ -128,26 +134,30 @@ def train_normal(config, X_num, X_cat, X_text, y, token_len):
         }, is_best, model_name, epoch_ckp, best_ckp)
 
 
-def train_fold(config, n_folds, X_num, X_cat, X_text, y, token_len):
+def train_fold(config, n_folds, X_num, X_cat, X_text, X_word, y, token_len):
     skf = KFold(n_folds)
     for fold, (train_index, test_index) in enumerate(skf.split(X_num)):
         print("[+] Fold: {}".format(fold))
         X_train_num = X_num[train_index]
         X_train_cat = X_cat[train_index]
         X_train_text = [text[train_index] for text in X_text]
+        X_train_word = [word[train_index] for word in X_word]
 
         y_train = y[train_index]
         train_dataset = d.AvitoDataset(X_train_num, X_train_cat,
-                                       X_train_text, y_train)
+                                       X_train_text, X_train_word,
+                                       y_train)
         train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], 
                                       num_workers = config["n_workers"], shuffle=True)
 
         X_val_num = X_num[test_index]
         X_val_cat = X_cat[test_index]
         X_val_text = [text[test_index] for text in X_text]
+        X_val_word = [word[test_index] for word in X_word]
         y_valid = y[test_index]
         valid_dataset = d.AvitoDataset(X_val_num, X_val_cat,
-                                       X_val_text, y_valid)
+                                       X_val_text, X_val_word,
+                                       y_valid)
         valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], 
                                       num_workers = config["n_workers"], shuffle=True)
 
@@ -171,8 +181,14 @@ def train_fold(config, n_folds, X_num, X_cat, X_text, y, token_len):
         print("[+] Text model")
         print(text_model)
 
+        # Word model
+        word_token_len = [word.shape[1] for word in X_word]
+        word_model = models.AvitorWord(max_features=100000, token_len=word_token_len)
+        print("[+] Word model")
+        print(word_model)
+
         # FC model
-        model = models.Avitor(num_model, cat_model, text_model)
+        model = models.Avitor(num_model, cat_model, text_model, word_model)
         print("[+] Summary model")
         print(model)
 
@@ -229,21 +245,24 @@ def main():
     X_train_cat = utils.load_features(extracted_features_root, "X_train_cat")
     X_train_desc = utils.load_features(extracted_features_root, "X_train_desc").any()
     X_train_title = utils.load_features(extracted_features_root, "X_train_title").any()
+    X_train_word_desc = utils.load_features(extracted_features_root, "X_train_word_description")
+    X_train_word_title = utils.load_features(extracted_features_root, "X_train_word_title")
     #X_train_param = utils.load_features(extracted_features_root, "X_train_param").any()
 
     #X_train_text = [X_train_desc, X_train_title, X_train_param]
     X_train_text = [X_train_desc, X_train_title]
+    X_train_word = [X_train_word_desc, X_train_word_title]
 
     n_folds = config["n_fold"]
     if n_folds:
         train_fold(config, n_folds,
                    X_train_num, X_train_cat,
-                   X_train_text,
+                   X_train_text, X_train_word,
                    y, token_len)
     else:
         train_normal(config,
                    X_train_num, X_train_cat,
-                   X_train_text,
+                   X_train_text, X_train_word,
                    y, token_len)
 
 if __name__ == '__main__':
