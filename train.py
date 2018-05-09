@@ -33,19 +33,23 @@ def train_normal(config, X_num, X_cat, X_text, X_word, y, token_len):
     X_train_num = X_num[train_indicates]
     X_train_cat = X_cat[train_indicates]
     X_train_text = [text[train_indicates] for text in X_text]
+    X_train_word = [word[train_indicates] for word in X_word]
 
     y_train = y[train_indicates]
     train_dataset = d.AvitoDataset(X_train_num, X_train_cat,
-                                   X_train_text, y_train)
+                                   X_train_text, X_train_word,
+                                   y_train)
     train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], 
                                   num_workers = config["n_workers"], shuffle=True)
 
     X_val_num = X_num[test_indicates]
     X_val_cat = X_cat[test_indicates]
     X_val_text = [text[test_indicates] for text in X_text]
+    X_val_word = [word[test_indicates] for word in X_word]
     y_valid = y[test_indicates]
     valid_dataset = d.AvitoDataset(X_val_num, X_val_cat,
-                                   X_val_text, y_valid)
+                                   X_val_text, X_val_word,
+                                   y_valid)
     valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], 
                                   num_workers = config["n_workers"], shuffle=True)
 
