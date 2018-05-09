@@ -20,6 +20,16 @@ import json
 
 from scipy.sparse import hstack
 
+def load_preds_train_fold(model_name, fold):
+    file = f"pred_train_{model_name}_{fold}"
+    return utils.load_features("predict_train", file)
+
+
+def load_preds_test_fold(model_name, fold):
+    file = f"predict_root/submission_{model_name}_{fold}.csv"
+    preds = pd.read_csv(file)["deal_probability"].tolist()
+    return np.array(preds).reshape(-1, 1)
+
 def main():
     # Load json config
     config = json.load(open("config.json"))
@@ -41,15 +51,32 @@ def main():
     X_test_title = utils.load_features(extracted_features_root, "X_test_title").any()
     X_test_param = utils.load_features(extracted_features_root, "X_test_param").any()
 
+    # Load predict train
+    n_folds = config["n_fold"]
+    model_name = config["model_name"]
+    X_pred_train = None
+    X_pred_test = None
+    for fold in range(n_folds):
+        preds_train = load_preds_train_fold(model_name, fold)
+        preds_test = load_preds_test_fold(model_name, fold)
+        if X_pred_train is None:
+            X_pred_train = preds_train
+            X_pred_test = preds_test
+        else:
+            X_pred_train = np.concatenate((X_pred_train, preds_train), axis=1)
+            X_pred_test = np.concatenate((X_pred_test, preds_test), axis=1)
+    print("Predict train shape {}".format(X_pred_train.shape))
+    print("Predict test shape {}".format(X_pred_test.shape))
 
-    #X = np.concatenate((X_train_num, X_train_cat, X_train_desc, X_train_title), axis=1)
-    #X = np.concatenate((X_train_num, X_train_cat), axis=1)
-    X = hstack([X_train_num, X_train_cat, X_train_param])
+
+    # X = np.concatenate((X_train_num, X_train_cat, X_train_desc, X_train_title), axis=1)
+    # X = np.concatenate((X_train_num, X_train_cat, X_pred_train), axis=1)
+    X = hstack([X_train_num, X_train_cat, X_train_desc, X_train_title])
     X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.1)
 
     # test = np.concatenate((X_test_num, X_test_cat), axis=1)
     # test = np.concatenate((X_test_num, X_test_cat, X_test_desc, X_test_title), axis=1)
-    test = hstack([X_test_num, X_test_cat, X_test_param])
+    test = hstack([X_test_num, X_test_cat, X_test_desc, X_test_title])
 
     n_rounds = 200041
     lgbm_params = {
@@ -58,11 +85,11 @@ def main():
         'objective': 'regression',
         'metric': 'rmse',
         'max_depth': 13,
-        'num_leaves': 31,
+        # 'num_leaves': 31,
         'feature_fraction': 0.80,
         # 'bagging_fraction': 0.90,
         # 'bagging_freq': 5,
-        'learning_rate': 0.03,
+        'learning_rate': 0.05,
         'lambda_l2': 5,
         'verbose': 0,
         "device": "gpu",
@@ -92,7 +119,8 @@ def main():
     deal_probability = lgb_clf.predict(test)
     submission = pd.read_csv(config["sample_submission"])
     submission['deal_probability'] = deal_probability
-    submission.to_csv(f"submission_lgbm.csv", index=False)
+    submission['deal_probability'].clip(0.0, 1.0, inplace=True)
+    submission.to_csv(f"submission_lgbm_boost.csv", index=False)
 
 if __name__ == '__main__':
     main()
