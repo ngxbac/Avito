@@ -118,27 +118,20 @@ class FloatTensor(nn.Module):
     def forward(selfs, x):
         return x.float()
 
+
 # BiRNN Model (Many-to-One)
 class BiRNN(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, num_classes):
         super(BiRNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers,
-                            batch_first=True, bidirectional=True)
-        self.fc = nn.Linear(hidden_size * 2, num_classes)  # 2 for bidirection
+        self.gru = nn.GRU(input_size, hidden_size, num_layers,
+                            bidirectional=True)
 
     def forward(self, x):
-        # Set initial states
-        h0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size)  # 2 for bidirection
-        c0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size)
-
         # Forward propagate RNN
-        out, _ = self.lstm(x, (h0, c0))
-
-        # Decode hidden state of last time step
-        out = self.fc(out[:, -1, :])
-        return out
+        out, _ = self.gru(x)
+        return out.permute(0, 2, 1)
 
 
 # RNN Model (Many-to-One)
@@ -180,22 +173,23 @@ class AvitorWord(nn.Module):
 
             word_layer = nn.Sequential(
                 embedding,
-                # TensorRotate(),
                 FloatTensor(),
-                nn.BatchNorm1d(tkl),
-                RNN(self.embedding_size, 64, 2, 32),
                 nn.Dropout(0.5),
+                BiRNN(self.embedding_size, 32, 2, 16),
+                nn.Conv1d(in_channels=64, out_channels=64, kernel_size=3),
+                nn.ReLU(),
+                nn.AdaptiveMaxPool1d(1),
+                Flatten(),
             )
             self.add_module(f"word_layer_{i}", word_layer)
             self.word_layers.append(word_layer)
 
-        self.out_features = 64
+        self.out_features = 128
 
-        # for m in self.modules():
-        #     if isinstance(m, nn.Embedding):
-        #         nn.init.xavier_normal_(m.weight)
-        #     elif isinstance(m, nn.Conv1d):
-        #         nn.init.xavier_normal_(m.weight)
+        for m in self.modules():
+            if isinstance(m, nn.Conv1d):
+                nn.init.xavier_normal_(m.weight)
+
 
     def forward(self, x):
         # print(self.word_layers[0](x[0]).shape)

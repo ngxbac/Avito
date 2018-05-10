@@ -245,6 +245,8 @@ def train_fold(config, n_folds, X_num, X_cat, X_text, X_word, embedding_weights,
 
 
 def main():
+    torch.backends.cudnn.benchmark = True
+
     # Load json config
     config = json.load(open("config.json"))
     extracted_features_root = config["extracted_features"]

@@ -60,13 +60,17 @@ def train(epoch, loader: DataLoader, model: nn.Module, criterion: nn.Module, opt
         loss.backward()
         optimizer.step()
 
-        pbar.set_description("Epoch train {}, "
-                             "Loss {:.4f} ({:.4f}), ".format(
-            epoch, losses.val, losses.avg
+        pbar.set_description("[+] Epoch train {}, "
+                             "Loss {:.4f} ({:.4f}), "
+                             "RMSE {:.4f} ({:.4f})".format(
+                              epoch, losses.val, losses.avg,
+                              np.sqrt(losses.val), np.sqrt(losses.avg)
         ))
     print("[+] Epoch train {}, "
-          "Loss {:.4f}".format(
-        epoch, losses.avg
+                             "Loss {:.4f} ({:.4f}), "
+                             "RMSE {:.4f} ({:.4f})".format(
+                              epoch, losses.val, losses.avg,
+                              np.sqrt(losses.val), np.sqrt(losses.avg)
     ))
 
 
@@ -86,14 +90,17 @@ def test(epoch, test_loader, model, criterion):
             # measure accuracy and record loss
             losses.update(loss.item(), batch_size)
 
-            pbar.set_description("Epoch test {}, "
-                                 "Loss {:.4f} ({:.4f}), ".format(
-                epoch, losses.val, losses.avg
+            pbar.set_description("[+] Epoch test {}, "
+                                 "Loss {:.4f} ({:.4f}), "
+                                 "RMSE {:.4f} ({:.4f})".format(
+                epoch, losses.val, losses.avg,
+                np.sqrt(losses.val), np.sqrt(losses.avg)
             ))
-
         print("[+] Epoch test {}, "
-              "{:.4f} \n".format(
-            epoch, losses.avg
+              "Loss {:.4f} ({:.4f}), "
+              "RMSE {:.4f} ({:.4f})\n".format(
+            epoch, losses.val, losses.avg,
+            np.sqrt(losses.val), np.sqrt(losses.avg)
         ))
 
         return losses.avg
