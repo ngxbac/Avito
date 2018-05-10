@@ -7,6 +7,7 @@ import json
 import gc
 import utils
 from keras.preprocessing import text, sequence
+import re
 
 
 def load_csv(csv_path, columns):
@@ -17,10 +18,11 @@ def load_csv(csv_path, columns):
 def preprocessing(df, columns):
     for cols in columns:
         df[cols] = df[cols].astype(str)
-        df[cols] = df[cols].astype(str).fillna(' ')  # FILL NA
+        df[cols] = df[cols].fillna('NA')  # FILL NA
         df[cols] = df[cols].str.lower()
         df[cols] = df[cols].str.replace("[^[:alpha:]]", " ")
         df[cols] = df[cols].str.replace("\\s+", " ")
+
     return df
 
 
@@ -53,23 +55,23 @@ def main():
         print("\n[+] Preprocessing text")
         df = preprocessing(df, txt_vars)
 
+    df['text'] = df.apply(lambda x: " ".join(x[col] for col in txt_vars), axis=1)
+
     with utils.timer("Create token"):
         print("\n[+] Create token")
         tokenizer = text.Tokenizer(num_words=word_max_dict)
-        tokenizer.fit_on_texts(df["title"].tolist() + df["description"].tolist())
+        tokenizer.fit_on_texts(df["text"].tolist())
 
-    for txt in txt_vars:
-        with utils.timer(f"Extract {txt}"):
-            print(f"\n[+] Extract {txt}")
-            list_tokenized = tokenizer.texts_to_sequences(df[txt].tolist())
-            X_words = sequence.pad_sequences(list_tokenized, maxlen=word_input_size)
-            # Split test and train
-            X_train_words = X_words[:n_train, :]
-            X_test_words = X_words[n_train:, :]
-            # Save the feature
-            print(f"[+] Save word features of {txt}")
-            utils.save_features(X_train_words, extracted_root, f"X_train_word_{txt}")
-            utils.save_features(X_test_words, extracted_root, f"X_test_word_{txt}")
+    with utils.timer("Extract word"):
+        list_tokenized = tokenizer.texts_to_sequences(df["text"].tolist())
+        X_words = sequence.pad_sequences(list_tokenized, maxlen=word_input_size)
+        # Split test and train
+        X_train_words = X_words[:n_train, :]
+        X_test_words = X_words[n_train:, :]
+        # Save the feature
+        print("[+] Save word features ")
+        utils.save_bcolz(X_train_words, extracted_root, f"X_train_word")
+        utils.save_bcolz(X_test_words, extracted_root, f"X_test_word")
 
     print("\n[+] Load pretrained embedding")
     # Use pretrained-weights for embedding
@@ -101,7 +103,7 @@ def main():
             embedding_matrix[i] = embedding_vector
 
     print("[+] Save pretrained embedding")
-    utils.save_features(embedding_matrix, extracted_root, "embedding_weights")
+    utils.save_bcolz(embedding_matrix, extracted_root, "embedding_weights")
 
 
 if __name__ == '__main__':

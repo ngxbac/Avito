@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import utils
+import numpy as np
 
 
 class Flatten(nn.Module):
@@ -111,7 +112,7 @@ class TensorRotate(nn.Module):
     #     super(TensorRotate, self).__init__()
 
     def forward(self, x):
-        return x.view(x.size(0), x.size(2), x.size(1)).float()
+        return x.permute(0, 2, 1).float()
 
 
 class FloatTensor(nn.Module):
@@ -168,23 +169,26 @@ class AvitorWord(nn.Module):
 
         for i, tkl in enumerate(token_len):
             embedding = nn.Embedding(self.max_features, self.embedding_size)
-            embedding.weight = nn.Parameter(torch.from_numpy(weights).double())
+            embedding.weight = nn.Parameter(torch.from_numpy(np.array(weights)).double())
             embedding.weight.requires_grad = False
 
             word_layer = nn.Sequential(
                 embedding,
-                FloatTensor(),
-                nn.Dropout(0.5),
-                BiRNN(self.embedding_size, 32, 2, 16),
-                nn.Conv1d(in_channels=64, out_channels=64, kernel_size=3),
+                # FloatTensor(),
+                # nn.Dropout(0.5),
+                TensorRotate(),
+                # BiRNN(self.embedding_size, 32, 2, 16),
+                nn.BatchNorm1d(self.embedding_size),
+                nn.Conv1d(in_channels=self.embedding_size, out_channels=50, kernel_size=3),
                 nn.ReLU(),
                 nn.AdaptiveMaxPool1d(1),
                 Flatten(),
+                nn.Dropout(0.5)
             )
             self.add_module(f"word_layer_{i}", word_layer)
             self.word_layers.append(word_layer)
 
-        self.out_features = 128
+        self.out_features = 50
 
         for m in self.modules():
             if isinstance(m, nn.Conv1d):

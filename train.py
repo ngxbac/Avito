@@ -259,12 +259,13 @@ def main():
     X_train_cat = utils.load_features(extracted_features_root, "X_train_cat")
     X_train_desc = utils.load_features(extracted_features_root, "X_train_desc").any()
     X_train_title = utils.load_features(extracted_features_root, "X_train_title").any()
-    X_train_word_desc = utils.load_features(extracted_features_root, "X_train_word_description")
-    X_train_word_title = utils.load_features(extracted_features_root, "X_train_word_title")
-    embedding_weights = utils.load_features(extracted_features_root, "embedding_weights")
+    # X_train_word_desc = utils.load_features(extracted_features_root, "X_train_word_description")
+    # X_train_word_title = utils.load_features(extracted_features_root, "X_train_word_title")
+    embedding_weights = utils.load_bcolz(extracted_features_root, "embedding_weights")
+    X_train_word = [utils.load_bcolz(extracted_features_root, "X_train_word")]
 
     X_train_text = [X_train_desc, X_train_title]
-    X_train_word = [X_train_word_desc, X_train_word_title]
+    # X_train_word = [X_train_word_desc, X_train_word_title]
 
     n_folds = config["n_fold"]
     if n_folds:

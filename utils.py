@@ -140,13 +140,13 @@ def read_bcolz_data(name):
     return bcolz.open(name)
 
 
-def save_features(feature, root, name):
+def save_bcolz(feature, root, name):
     if not os.path.exists(root):
         os.mkdir(root)
-    bcolz.carray(feature, chunklen=1, mode='w', rootdir=f"{root}/{name}")
+    bcolz.carray(feature, chunklen=1024, mode='w', rootdir=f"{root}/{name}")
     
 
-def load_features(root, name):
+def load_bcolz(root, name):
     if not os.path.exists(root):
         print(f"[+] Feature {name} does not exists")
         return None
@@ -157,3 +157,16 @@ def save_csv(df, root, name):
     if not os.path.exists(root):
         os.mkdir(root)
     df.to_csv(f"{root}/{name}", index=False)
+
+
+def save_features(feature, root, name):
+    if not os.path.exists(root):
+        os.mkdir(root)
+    np.save(f"{root}/{name}.npy", feature)
+
+
+def load_features(root, name):
+    if not os.path.exists(root):
+        print(f"[+] Feature {name} does not exists")
+        return None
+    return np.load(f"{root}/{name}.npy")
