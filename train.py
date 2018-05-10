@@ -90,7 +90,8 @@ def train_normal(config, X_num, X_cat, X_text, X_word, embedding_weights, y, tok
 
     # MSE loss and optimizer
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=config["lr"])
+    parameters = filter(lambda p: p.requires_grad, model.parameters())
+    optimizer = optim.Adam(parameters, lr=config["lr"])
     if torch.cuda.is_available():
         model.cuda()
         criterion.cuda()
@@ -204,7 +205,8 @@ def train_fold(config, n_folds, X_num, X_cat, X_text, X_word, embedding_weights,
 
         # MSE loss and optimizer
         criterion = nn.MSELoss()
-        optimizer = optim.Adam(model.parameters(), lr=config["lr"])
+        parameters = filter(lambda p: p.requires_grad, model.parameters())
+        optimizer = optim.Adam(parameters, lr=config["lr"])
         if torch.cuda.is_available():
             model.cuda()
             criterion.cuda()

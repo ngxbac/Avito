@@ -114,36 +114,88 @@ class TensorRotate(nn.Module):
         return x.view(x.size(0), x.size(2), x.size(1)).float()
 
 
+class FloatTensor(nn.Module):
+    def forward(selfs, x):
+        return x.float()
+
+# BiRNN Model (Many-to-One)
+class BiRNN(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, num_classes):
+        super(BiRNN, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers,
+                            batch_first=True, bidirectional=True)
+        self.fc = nn.Linear(hidden_size * 2, num_classes)  # 2 for bidirection
+
+    def forward(self, x):
+        # Set initial states
+        h0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size)  # 2 for bidirection
+        c0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size)
+
+        # Forward propagate RNN
+        out, _ = self.lstm(x, (h0, c0))
+
+        # Decode hidden state of last time step
+        out = self.fc(out[:, -1, :])
+        return out
+
+
+# RNN Model (Many-to-One)
+class RNN(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, num_classes):
+        super(RNN, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size, num_classes)
+
+    def forward(self, x):
+        # Set initial states
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).cuda()
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).cuda()
+
+        # Forward propagate RNN
+        out, _ = self.lstm(x, (h0, c0))
+
+        # Decode hidden state of last time step
+        out = self.fc(out[:, -1, :])
+        return out
+
+
 class AvitorWord(nn.Module):
     def __init__(self, max_features, token_len, embedding_size, weights):
         super(AvitorWord, self).__init__()
         self.max_features = max_features
         self.embedding_size = embedding_size
         self.token_len = token_len
-
         self.n_word_layer = len(token_len)
 
         self.word_layers = []
+
         for i, tkl in enumerate(token_len):
+            embedding = nn.Embedding(self.max_features, self.embedding_size)
+            embedding.weight = nn.Parameter(torch.from_numpy(weights).double())
+            embedding.weight.requires_grad = False
+
             word_layer = nn.Sequential(
-                nn.Embedding(self.max_features, self.embedding_size,
-                             _weight=torch.from_numpy(weights).double()),
-                TensorRotate(),
-                nn.Conv1d(self.embedding_size, 128, kernel_size=3),
-                nn.ReLU(),
-                nn.AdaptiveMaxPool1d(64),
-                Flatten()
+                embedding,
+                # TensorRotate(),
+                FloatTensor(),
+                nn.BatchNorm1d(tkl),
+                RNN(self.embedding_size, 64, 2, 32),
+                nn.Dropout(0.5),
             )
             self.add_module(f"word_layer_{i}", word_layer)
             self.word_layers.append(word_layer)
 
-        self.out_features = 8192 * 2
+        self.out_features = 64
 
-        for m in self.modules():
-            if isinstance(m, nn.Embedding):
-                nn.init.xavier_normal_(m.weight)
-            elif isinstance(m, nn.Conv1d):
-                nn.init.xavier_normal_(m.weight)
+        # for m in self.modules():
+        #     if isinstance(m, nn.Embedding):
+        #         nn.init.xavier_normal_(m.weight)
+        #     elif isinstance(m, nn.Conv1d):
+        #         nn.init.xavier_normal_(m.weight)
 
     def forward(self, x):
         # print(self.word_layers[0](x[0]).shape)
