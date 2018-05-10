@@ -25,7 +25,7 @@ class rmse(nn.Module):
         return torch.sqrt(torch.mean((y-y_hat).pow(2)))
 
 
-def train_normal(config, X_num, X_cat, X_text, X_word, y, token_len):
+def train_normal(config, X_num, X_cat, X_text, X_word, embedding_weights, y, token_len):
     # Create train/valid dataset and dataloader
     indicates = range(X_num.shape[0])
     _, _, _, _, train_indicates, test_indicates = train_test_split(X_num, y, indicates, test_size=0.1)
@@ -40,7 +40,7 @@ def train_normal(config, X_num, X_cat, X_text, X_word, y, token_len):
                                    X_train_text, X_train_word,
                                    y_train)
     train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], 
-                                  num_workers = config["n_workers"], shuffle=True)
+                                  num_workers=config["n_workers"], shuffle=True)
 
     X_val_num = X_num[test_indicates]
     X_val_cat = X_cat[test_indicates]
@@ -51,7 +51,7 @@ def train_normal(config, X_num, X_cat, X_text, X_word, y, token_len):
                                    X_val_text, X_val_word,
                                    y_valid)
     valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], 
-                                  num_workers = config["n_workers"], shuffle=True)
+                                  num_workers=config["n_workers"], shuffle=True)
 
     embedding_size = config["embedding_size"]
     # Category model
@@ -74,8 +74,11 @@ def train_normal(config, X_num, X_cat, X_text, X_word, y, token_len):
     print(text_model)
 
     # Word model
-    word_token_len = [word.shape[1] for word in X_word]
-    word_model = models.AvitorWord(max_features=100000, token_len=word_token_len)
+    word_token_len = [config["word_input_size"] for word in range(X_word)]
+    word_model = models.AvitorWord(max_features=config["word_max_dict"],
+                                   token_len=word_token_len,
+                                   embedding_size=config["word_embedding_size"],
+                                   weights=embedding_weights)
     print("[+] Word model")
     print(word_model)
 
@@ -138,7 +141,7 @@ def train_normal(config, X_num, X_cat, X_text, X_word, y, token_len):
         }, is_best, model_name, epoch_ckp, best_ckp)
 
 
-def train_fold(config, n_folds, X_num, X_cat, X_text, X_word, y, token_len):
+def train_fold(config, n_folds, X_num, X_cat, X_text, X_word, embedding_weights, y, token_len):
     skf = KFold(n_folds)
     for fold, (train_index, test_index) in enumerate(skf.split(X_num)):
         print("[+] Fold: {}".format(fold))
@@ -152,7 +155,7 @@ def train_fold(config, n_folds, X_num, X_cat, X_text, X_word, y, token_len):
                                        X_train_text, X_train_word,
                                        y_train)
         train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], 
-                                      num_workers = config["n_workers"], shuffle=True)
+                                      num_workers=config["n_workers"], shuffle=True)
 
         X_val_num = X_num[test_index]
         X_val_cat = X_cat[test_index]
@@ -163,7 +166,7 @@ def train_fold(config, n_folds, X_num, X_cat, X_text, X_word, y, token_len):
                                        X_val_text, X_val_word,
                                        y_valid)
         valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], 
-                                      num_workers = config["n_workers"], shuffle=True)
+                                      num_workers=config["n_workers"], shuffle=True)
 
         embedding_size = config["embedding_size"]
         # Category model
@@ -186,8 +189,11 @@ def train_fold(config, n_folds, X_num, X_cat, X_text, X_word, y, token_len):
         print(text_model)
 
         # Word model
-        word_token_len = [word.shape[1] for word in X_word]
-        word_model = models.AvitorWord(max_features=100000, token_len=word_token_len)
+        word_token_len = [config["word_input_size"] for word in range(X_word)]
+        word_model = models.AvitorWord(max_features=config["word_max_dict"],
+                                       token_len=word_token_len,
+                                       embedding_size=config["word_embedding_size"],
+                                       weights=embedding_weights)
         print("[+] Word model")
         print(word_model)
 
@@ -251,9 +257,8 @@ def main():
     X_train_title = utils.load_features(extracted_features_root, "X_train_title").any()
     X_train_word_desc = utils.load_features(extracted_features_root, "X_train_word_description")
     X_train_word_title = utils.load_features(extracted_features_root, "X_train_word_title")
-    #X_train_param = utils.load_features(extracted_features_root, "X_train_param").any()
+    embedding_weights = utils.load_features(extracted_features_root, "embedding_weights")
 
-    #X_train_text = [X_train_desc, X_train_title, X_train_param]
     X_train_text = [X_train_desc, X_train_title]
     X_train_word = [X_train_word_desc, X_train_word_title]
 
@@ -262,12 +267,12 @@ def main():
         train_fold(config, n_folds,
                    X_train_num, X_train_cat,
                    X_train_text, X_train_word,
-                   y, token_len)
+                   embedding_weights, y, token_len)
     else:
         train_normal(config,
                    X_train_num, X_train_cat,
                    X_train_text, X_train_word,
-                   y, token_len)
+                   embedding_weights, y, token_len)
 
 if __name__ == '__main__':
     main()

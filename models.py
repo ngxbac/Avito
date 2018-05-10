@@ -115,7 +115,7 @@ class TensorRotate(nn.Module):
 
 
 class AvitorWord(nn.Module):
-    def __init__(self, max_features, token_len, embedding_size=300):
+    def __init__(self, max_features, token_len, embedding_size, weights):
         super(AvitorWord, self).__init__()
         self.max_features = max_features
         self.embedding_size = embedding_size
@@ -126,7 +126,7 @@ class AvitorWord(nn.Module):
         self.word_layers = []
         for i, tkl in enumerate(token_len):
             word_layer = nn.Sequential(
-                nn.Embedding(self.max_features, self.embedding_size),
+                nn.Embedding(self.max_features, self.embedding_size, _weight=weights),
                 TensorRotate(),
                 nn.Conv1d(self.embedding_size, 128, kernel_size=3),
                 nn.ReLU(),

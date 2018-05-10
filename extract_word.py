@@ -6,7 +6,6 @@ import numpy as np
 import json
 import gc
 import utils
-
 from keras.preprocessing import text, sequence
 
 
@@ -99,6 +98,7 @@ def main():
 
     print("[+] Save pretrained embedding")
     utils.save_features(embedding_matrix, extracted_root, "embedding_weights")
+
 
 if __name__ == '__main__':
     main()
