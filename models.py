@@ -107,6 +107,8 @@ class AvitorCat(nn.Module):
 
 
 class TensorRotate(nn.Module):
+    # def __init__(self):
+    #     super(TensorRotate, self).__init__()
 
     def forward(self, x):
         return x.view(x.size(0), x.size(2), x.size(1))
@@ -134,16 +136,17 @@ class AvitorWord(nn.Module):
             self.add_module(f"word_layer_{i}", word_layer)
             self.word_layers.append(word_layer)
 
-        self.out_features = self.word_layers * 64 * ((self.max_features + 3) // 2 + 1)
+        self.out_features = 8192 * 2
 
         for m in self.modules():
             if isinstance(m, nn.Embedding):
                 nn.init.xavier_normal_(m.weight)
-            else:
+            elif isinstance(m, nn.Conv1d):
                 nn.init.xavier_normal_(m.weight)
 
     def forward(self, x):
-        return [self.word_layers[i](x[:, i]) for i in range(self.n_word_layer)]
+        # print(self.word_layers[0](x[0]).shape)
+        return [self.word_layers[i](x[i]) for i in range(self.n_word_layer)]
 
 
 class Avitor(nn.Module):
@@ -154,7 +157,10 @@ class Avitor(nn.Module):
         self.text_model = text_model
         self.word_model = word_model
 
-        self.in_features = self.num_model.out_features + self.cat_model.out_features + self.text_model.out_features
+        self.in_features = self.num_model.out_features + \
+                           self.cat_model.out_features + \
+                           self.text_model.out_features + \
+                           self.word_model.out_features
 
         self.fc = nn.Sequential(
             nn.BatchNorm1d(self.in_features),
