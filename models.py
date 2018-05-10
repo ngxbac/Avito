@@ -111,7 +111,7 @@ class TensorRotate(nn.Module):
     #     super(TensorRotate, self).__init__()
 
     def forward(self, x):
-        return x.view(x.size(0), x.size(2), x.size(1))
+        return x.view(x.size(0), x.size(2), x.size(1)).float()
 
 
 class AvitorWord(nn.Module):
@@ -126,7 +126,8 @@ class AvitorWord(nn.Module):
         self.word_layers = []
         for i, tkl in enumerate(token_len):
             word_layer = nn.Sequential(
-                nn.Embedding(self.max_features, self.embedding_size, _weight=weights),
+                nn.Embedding(self.max_features, self.embedding_size,
+                             _weight=torch.from_numpy(weights).double()),
                 TensorRotate(),
                 nn.Conv1d(self.embedding_size, 128, kernel_size=3),
                 nn.ReLU(),
@@ -146,6 +147,7 @@ class AvitorWord(nn.Module):
 
     def forward(self, x):
         # print(self.word_layers[0](x[0]).shape)
+        # print((x[0]))
         return [self.word_layers[i](x[i]) for i in range(self.n_word_layer)]
 
 

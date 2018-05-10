@@ -76,10 +76,14 @@ def main():
     EMBEDDING_FILE = config["fasttext_vec"]
     # embed_size = 300
     embeddings_index = {}
+    counter = 0
     with open(EMBEDDING_FILE, encoding='utf8') as f:
         for line in f:
             values = line.rstrip().rsplit(' ')
             word = values[0]
+            if counter <= 10:
+                print(f"[+] {word}")
+                counter = counter + 1
             coefs = np.asarray(values[1:], dtype='float32')
             embeddings_index[word] = coefs
     print("[+] Load is done")

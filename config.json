@@ -10,7 +10,7 @@
   "word_input_size": 300,
   "lr": 1e-2,
   "epoch": 100,
-  "batch_size": 2048,
+  "batch_size": 512,
   "embedding_size": 4,
   "n_workers": 4,
   "model_name": "avitor_tunning",

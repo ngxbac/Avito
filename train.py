@@ -74,7 +74,7 @@ def train_normal(config, X_num, X_cat, X_text, X_word, embedding_weights, y, tok
     print(text_model)
 
     # Word model
-    word_token_len = [config["word_input_size"] for word in range(X_word)]
+    word_token_len = [config["word_input_size"] for word in X_word]
     word_model = models.AvitorWord(max_features=config["word_max_dict"],
                                    token_len=word_token_len,
                                    embedding_size=config["word_embedding_size"],
@@ -189,7 +189,7 @@ def train_fold(config, n_folds, X_num, X_cat, X_text, X_word, embedding_weights,
         print(text_model)
 
         # Word model
-        word_token_len = [config["word_input_size"] for word in range(X_word)]
+        word_token_len = [config["word_input_size"] for word in X_word]
         word_model = models.AvitorWord(max_features=config["word_max_dict"],
                                        token_len=word_token_len,
                                        embedding_size=config["word_embedding_size"],
