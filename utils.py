@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 import os
 import numpy as np
+import bcolz
 
 
 @contextmanager
@@ -129,19 +130,27 @@ def load_checkpoint(checkpoint):
     else:
         print("=> no checkpoint found at '{}'".format(checkpoint))
         return None
-    
+
+
+def create_empty_bcolz(n, name):
+    return bcolz.carray(np.zeros((0, n), np.float32), chunklen=1, mode='w', rootdir=name)
+
+
+def read_bcolz_data(name):
+    return bcolz.open(name)
+
 
 def save_features(feature, root, name):
     if not os.path.exists(root):
         os.mkdir(root)
-    np.save(f"{root}/{name}.npy", feature)
+    bcolz.carray(feature, chunklen=1, mode='w', rootdir=f"{root}/{name}")
     
 
 def load_features(root, name):
     if not os.path.exists(root):
         print(f"[+] Feature {name} does not exists")
         return None
-    return np.load(f"{root}/{name}.npy")
+    return bcolz.open(f"{root}/{name}")
 
 
 def save_csv(df, root, name):
