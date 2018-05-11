@@ -79,6 +79,7 @@ def get_model():
     out_cat = []
     for x, tkl in zip(input_cat, token_len):
         x = Embedding(tkl + 1, config["embedding_size"], embeddings_initializer ="glorot_normal")(x)
+        x = SpatialDropout1D(0.25)(x)
         x = Flatten()(x)
         out_cat.append(x)
 
@@ -93,8 +94,8 @@ def get_model():
 
     x_words = Embedding(config["word_max_dict"], config["word_embedding_size"],
                         weights=[embedding_weights], trainable=False)(input_words)
-    x_words = SpatialDropout1D(0.3)(x_words)
-    x_words =Bidirectional(GRU(50, return_sequences=True))(x_words)
+    x_words = SpatialDropout1D(0.5)(x_words)
+    x_words = Bidirectional(CuDNNGRU(50, return_sequences=True))(x_words)
     x_words = Convolution1D(100, 3, activation="relu")(x_words)
     x_words = GlobalMaxPool1D()(x_words)
 
@@ -114,7 +115,7 @@ def get_model():
     return model
 
 
-def train(model):
+def train():
     model_name = config["model_name"]
     checkpoint_path = f"checkpoint/{model_name}/"
 
@@ -124,10 +125,10 @@ def train(model):
     file_path = f"{checkpoint_path}/keras_best.h5"
     checkpoint = ModelCheckpoint(file_path, monitor='val_loss', verbose=2, save_best_only=True, save_weights_only=True,
                                  mode='min')
-    early = EarlyStopping(monitor="val_loss", mode="min", patience=4, )
+    early = EarlyStopping(monitor="val_loss", mode="min", patience=5)
     lr_reduced = ReduceLROnPlateau(monitor='val_loss',
-                                   factor=0.1,
-                                   patience=2,
+                                   factor=0.5,
+                                   patience=3,
                                    verbose=1,
                                    epsilon=1e-4,
                                    mode='min')
@@ -141,6 +142,9 @@ def train(model):
         # Train with k-fold
         skf = KFold(n_folds)
         for fold, (train_index, val_index) in enumerate(skf.split(X_num)):
+            model = get_model()
+            model.summary()
+
             print(f"\n[+] Fold {fold}")
 
             file_path = f"{checkpoint_path}/keras_best_{fold}.h5"
@@ -166,12 +170,18 @@ def train(model):
                                 verbose=1, callbacks=callbacks_list,
                                 epochs=config["epoch"], batch_size=config["batch_size"])
     else:
+        model = get_model()
+        model.summary()
+
         history = model.fit([X_num, *list_train_cat, *X_text, X_word], y, validation_split=0.1,
                             verbose=1, callbacks=callbacks_list,
                             epochs=config["epoch"], batch_size=config["batch_size"])
 
 
-def test(model):
+def test():
+    model = get_model()
+    model.summary()
+
     model_name = config["model_name"]
     predict_root = config["predict_root"]
     checkpoint_path = f"checkpoint/{model_name}/"
@@ -222,14 +232,14 @@ if __name__ == '__main__':
         X_text = [X_desc, X_title]
         X_word = utils.load_bcolz(extracted_features_root, "X_test_word")
 
-    model = get_model()
-    model.summary()
-    plot_model(model, to_file='model.png')
+    # model = get_model()
+    # model.summary()
+    # plot_model(model, to_file='model.png')
 
     if args.mode == "train":
-        train(model)
+        train()
     elif args.mode == "test":
-        test(model)
+        test()
 
 
 
