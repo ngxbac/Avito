@@ -7,11 +7,11 @@
   "predict_root": "predict_root",
   "lr": 1e-2,
   "epoch": 100,
-  "batch_size": 2048,
+  "batch_size": 512,
   "embedding_size": 4,
   "n_workers": 4,
-  "model_name": "avitor_tunning",
+  "model_name": "keras_10fold",
   "patience": 5,
-  "n_fold": 0,
+  "n_fold": 10,
   "resume": ""
 }
