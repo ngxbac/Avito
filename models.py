@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import utils
+import numpy as np
 
 
 class Flatten(nn.Module):
@@ -106,14 +107,112 @@ class AvitorCat(nn.Module):
         return [self.embedding_layers[i](x[:, i]) for i in range(self.n_embedding_layers)]
 
 
+class TensorRotate(nn.Module):
+    # def __init__(self):
+    #     super(TensorRotate, self).__init__()
+
+    def forward(self, x):
+        return x.permute(0, 2, 1).float()
+
+
+class FloatTensor(nn.Module):
+    def forward(selfs, x):
+        return x.float()
+
+
+# BiRNN Model (Many-to-One)
+class BiRNN(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, num_classes):
+        super(BiRNN, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.gru = nn.GRU(input_size, hidden_size, num_layers,
+                            bidirectional=True)
+
+    def forward(self, x):
+        # Forward propagate RNN
+        out, _ = self.gru(x)
+        return out.permute(0, 2, 1)
+
+
+# RNN Model (Many-to-One)
+class RNN(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, num_classes):
+        super(RNN, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size, num_classes)
+
+    def forward(self, x):
+        # Set initial states
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).cuda()
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).cuda()
+
+        # Forward propagate RNN
+        out, _ = self.lstm(x, (h0, c0))
+
+        # Decode hidden state of last time step
+        out = self.fc(out[:, -1, :])
+        return out
+
+
+class AvitorWord(nn.Module):
+    def __init__(self, max_features, token_len, embedding_size, weights):
+        super(AvitorWord, self).__init__()
+        self.max_features = max_features
+        self.embedding_size = embedding_size
+        self.token_len = token_len
+        self.n_word_layer = len(token_len)
+
+        self.word_layers = []
+
+        for i, tkl in enumerate(token_len):
+            embedding = nn.Embedding(self.max_features, self.embedding_size)
+            embedding.weight = nn.Parameter(torch.from_numpy(np.array(weights)).double())
+            embedding.weight.requires_grad = False
+
+            word_layer = nn.Sequential(
+                embedding,
+                # FloatTensor(),
+                # nn.Dropout(0.5),
+                TensorRotate(),
+                # BiRNN(self.embedding_size, 32, 2, 16),
+                nn.BatchNorm1d(self.embedding_size),
+                nn.Conv1d(in_channels=self.embedding_size, out_channels=50, kernel_size=3),
+                nn.ReLU(),
+                nn.AdaptiveMaxPool1d(1),
+                Flatten(),
+                nn.Dropout(0.5)
+            )
+            self.add_module(f"word_layer_{i}", word_layer)
+            self.word_layers.append(word_layer)
+
+        self.out_features = 50
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv1d):
+                nn.init.xavier_normal_(m.weight)
+
+
+    def forward(self, x):
+        # print(self.word_layers[0](x[0]).shape)
+        # print((x[0]))
+        return [self.word_layers[i](x[i]) for i in range(self.n_word_layer)]
+
+
 class Avitor(nn.Module):
-    def __init__(self, num_model, cat_model, text_model):
+    def __init__(self, num_model, cat_model, text_model, word_model):
         super(Avitor, self).__init__()
         self.num_model = num_model
         self.cat_model = cat_model
         self.text_model = text_model
+        self.word_model = word_model
 
-        self.in_features = self.num_model.out_features + self.cat_model.out_features + self.text_model.out_features
+        self.in_features = self.num_model.out_features + \
+                           self.cat_model.out_features + \
+                           self.text_model.out_features + \
+                           self.word_model.out_features
 
         self.fc = nn.Sequential(
             nn.BatchNorm1d(self.in_features),
@@ -124,7 +223,6 @@ class Avitor(nn.Module):
             nn.Sigmoid()
         )
 
-
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.xavier_normal_(m.weight)
@@ -132,17 +230,18 @@ class Avitor(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-
-    def forward(self, X_num, X_cat, X_text):
+    def forward(self, X_num, X_cat, X_text, X_word):
         X_num = utils.to_gpu(X_num)
         X_cat = utils.to_gpu(X_cat)
         X_text = [utils.to_gpu(text) for text in X_text]
+        X_word = [utils.to_gpu(word) for word in X_word]
 
         out_num = self.num_model(X_num)
         out_cat = self.cat_model(X_cat)
         out_txt = self.text_model(X_text)
+        out_word = self.word_model(X_word)
 
-        all_features = torch.cat([out_num, *out_cat, out_txt], 1)
+        all_features = torch.cat([out_num, *out_cat, out_txt, *out_word], 1)
         all_features = utils.to_gpu(all_features)
 
         return self.fc(all_features)

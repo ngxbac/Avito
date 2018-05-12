@@ -2,7 +2,7 @@
   "train_csv": "/home/deeplearning/Kaggle/avito/input/train.csv",
   "test_csv": "/home/deeplearning/Kaggle/avito/input/test.csv",
   "sample_submission": "/home/deeplearning/Kaggle/avito/input/sample_submission.csv",
-  "word2vec_ru": "/home/deeplearning/Kaggle/avito/input/wiki.ru.vec",
+  "fasttext_vec": "/home/deeplearning/Kaggle/avito/input/wiki.ru.vec",
   "extracted_features": "extracted_features",
   "predict_root": "predict_root",
   "word_embedding_size": 300,
