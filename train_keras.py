@@ -179,9 +179,6 @@ def train():
 
 
 def test():
-    model = get_model()
-    model.summary()
-
     model_name = config["model_name"]
     predict_root = config["predict_root"]
     checkpoint_path = f"checkpoint/{model_name}/"
@@ -194,6 +191,7 @@ def test():
         # Test with k-fold
         preds_all = []
         for fold in range(n_folds):
+            model = get_model()
             print(f"\n[+] Test Fold {fold}")
             file_path = f"{checkpoint_path}/keras_best_{fold}.h5"
             model.load_weights(file_path)
@@ -209,6 +207,8 @@ def test():
         # submission.to_csv(f"submission_{model_name}_avg.csv", index=False)
         utils.save_csv(submission, predict_root, f"keras_{model_name}_avg.csv")
     else:
+        model = get_model()
+        model.summary()
         model.load_weights(file_path)
         pred = model.predict([X_num, *list_cat, *X_text, X_word], batch_size=512)
         submission = pd.read_csv(config["sample_submission"])
