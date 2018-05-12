@@ -20,8 +20,8 @@ def preprocessing(df, columns):
         df[cols] = df[cols].astype(str)
         df[cols] = df[cols].fillna('NA')  # FILL NA
         df[cols] = df[cols].str.lower()
-        df[cols] = df[cols].str.replace("[^[:alpha:]]", " ")
-        df[cols] = df[cols].str.replace("\\s+", " ")
+        #df[cols] = df[cols].str.replace("[^[:alpha:]]", " ")
+        #df[cols] = df[cols].str.replace("\\s+", " ")
 
     return df
 
