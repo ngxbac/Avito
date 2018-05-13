@@ -8,6 +8,7 @@ import gc
 import utils
 from keras.preprocessing import text, sequence
 import re
+from gensim.models import KeyedVectors
 
 
 def load_csv(csv_path, columns):
@@ -20,8 +21,8 @@ def preprocessing(df, columns):
         df[cols] = df[cols].astype(str)
         df[cols] = df[cols].fillna('NA')  # FILL NA
         df[cols] = df[cols].str.lower()
-        #df[cols] = df[cols].str.replace("[^[:alpha:]]", " ")
-        #df[cols] = df[cols].str.replace("\\s+", " ")
+        df[cols] = df[cols].str.replace("[^[:alpha:]]", " ")
+        df[cols] = df[cols].str.replace("\\s+", " ")
 
     return df
 
@@ -76,18 +77,7 @@ def main():
     print("\n[+] Load pretrained embedding")
     # Use pretrained-weights for embedding
     EMBEDDING_FILE = config["fasttext_vec"]
-    # embed_size = 300
-    embeddings_index = {}
-    counter = 0
-    with open(EMBEDDING_FILE, encoding='utf8') as f:
-        for line in f:
-            values = line.rstrip().rsplit(' ')
-            word = values[0]
-            if counter <= 10:
-                print(f"[+] {word}")
-                counter = counter + 1
-            coefs = np.asarray(values[1:], dtype='float32')
-            embeddings_index[word] = coefs
+    model = KeyedVectors.load_word2vec_format(EMBEDDING_FILE, binary=False)
     print("[+] Load is done")
     print("[+] Create pretrained embedding")
     word_index = tokenizer.word_index
@@ -95,12 +85,13 @@ def main():
     num_words = min(word_max_dict, len(word_index) + 1)
     embedding_matrix = np.zeros((num_words, word_embedding_size))
     for word, i in word_index.items():
-        if i >= word_max_dict:
+        try:
+            embedding_vector = model[word]
+            if embedding_vector is not None:
+                # words not found in embedding index will be all-zeros.
+                embedding_matrix[i] = embedding_vector
+        except:
             continue
-        embedding_vector = embeddings_index.get(word)
-        if embedding_vector is not None:
-            # words not found in embedding index will be all-zeros.
-            embedding_matrix[i] = embedding_vector
 
     print("[+] Save pretrained embedding")
     utils.save_bcolz(embedding_matrix, extracted_root, "embedding_weights")

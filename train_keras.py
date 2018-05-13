@@ -15,6 +15,8 @@ from sklearn.model_selection import StratifiedKFold, KFold
 import argparse
 import pandas as pd
 
+from keras.callbacks import CSVLogger
+
 from keras.utils import plot_model
 config = json.load(open("config.json"))
 
@@ -125,14 +127,13 @@ def train():
     file_path = f"{checkpoint_path}/keras_best.h5"
     checkpoint = ModelCheckpoint(file_path, monitor='val_loss', verbose=2, save_best_only=True, save_weights_only=True,
                                  mode='min')
-    early = EarlyStopping(monitor="val_loss", mode="min", patience=5)
+    early = EarlyStopping(monitor="val_loss", mode="min", patience=5, min_delta=1e-4)
     lr_reduced = ReduceLROnPlateau(monitor='val_loss',
                                    factor=0.5,
                                    patience=3,
                                    verbose=1,
                                    epsilon=1e-4,
                                    mode='min')
-    callbacks_list = [checkpoint, early, lr_reduced]
 
     list_train_cat = [X_cat[:, i] for i in range(X_cat.shape[1])]
 
@@ -143,15 +144,16 @@ def train():
         skf = KFold(n_folds)
         for fold, (train_index, val_index) in enumerate(skf.split(X_num)):
             model = get_model()
-            model.summary()
+            # model.summary()
 
             print(f"\n[+] Fold {fold}")
 
-            file_path = f"{checkpoint_path}/keras_best_{fold}.h5"
+            file_path = f"{checkpoint_path}/keras_{model_name}_best_{fold}.h5"
             checkpoint = ModelCheckpoint(file_path, monitor='val_loss', verbose=2, save_best_only=True,
                                          save_weights_only=True,
                                          mode='min')
-            callbacks_list = [checkpoint, early, lr_reduced]
+            csv_logger = CSVLogger(f'{checkpoint_path}/log_{model_name}_{fold}.csv', append=True, separator=',')
+            callbacks_list = [checkpoint, early, lr_reduced, csv_logger]
 
             X_tr_fold_num = X_num[train_index]
             X_tr_fold_cat = [cat[train_index] for cat in list_train_cat]
@@ -173,6 +175,9 @@ def train():
         model = get_model()
         model.summary()
 
+        csv_logger = CSVLogger(f'{checkpoint_path}/log_{model_name}_one.csv', append=True, separator=',')
+        callbacks_list = [checkpoint, early, lr_reduced, csv_logger]
+
         history = model.fit([X_num, *list_train_cat, *X_text, X_word], y, validation_split=0.1,
                             verbose=1, callbacks=callbacks_list,
                             epochs=config["epoch"], batch_size=config["batch_size"])
@@ -193,7 +198,7 @@ def test():
         for fold in range(n_folds):
             model = get_model()
             print(f"\n[+] Test Fold {fold}")
-            file_path = f"{checkpoint_path}/keras_best_{fold}.h5"
+            file_path = f"{checkpoint_path}/keras_{model_name}_best_{fold}.h5"
             model.load_weights(file_path)
             pred = model.predict([X_num, *list_cat, *X_text, X_word], batch_size=512)
             submission = pd.read_csv(config["sample_submission"])
