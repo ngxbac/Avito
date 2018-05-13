@@ -94,12 +94,113 @@ def get_model():
         x = Dropout(0.5)(x)
         out_text.append(x)
 
-    x_words = Embedding(config["word_max_dict"], config["word_embedding_size"],
-                        weights=[embedding_weights], trainable=False)(input_words)
-    x_words = SpatialDropout1D(0.5)(x_words)
-    x_words = Bidirectional(CuDNNGRU(50, return_sequences=True))(x_words)
-    x_words = Convolution1D(100, 3, activation="relu")(x_words)
-    x_words = GlobalMaxPool1D()(x_words)
+    # model
+    # wrote out all the blocks instead of looping for simplicity
+    filter_nr = 64
+    filter_size = 3
+    max_pool_size = 3
+    max_pool_strides = 2
+    dense_nr = 256
+    spatial_dropout = 0.2
+    dense_dropout = 0.5
+    train_embed = False
+    conv_kern_reg = regularizers.l2(0.00001)
+    conv_bias_reg = regularizers.l2(0.00001)
+
+
+    emb_comment = Embedding(config["word_max_dict"], config["word_embedding_size"], weights=[embedding_weights],
+                            trainable=train_embed)(input_words)
+    emb_comment = SpatialDropout1D(spatial_dropout)(emb_comment)
+
+    block1 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(emb_comment)
+    block1 = BatchNormalization()(block1)
+    block1 = PReLU()(block1)
+    block1 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(block1)
+    block1 = BatchNormalization()(block1)
+    block1 = PReLU()(block1)
+
+    # we pass embedded comment through conv1d with filter size 1 because it needs to have the same shape as block output
+    # if you choose filter_nr = embed_size (300 in this case) you don't have to do this part and can add emb_comment directly to block1_output
+    resize_emb = Conv1D(filter_nr, kernel_size=1, padding='same', activation='linear',
+                        kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(emb_comment)
+    resize_emb = PReLU()(resize_emb)
+
+    block1_output = add([block1, resize_emb])
+    block1_output = MaxPooling1D(pool_size=max_pool_size, strides=max_pool_strides)(block1_output)
+
+    block2 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(block1_output)
+    block2 = BatchNormalization()(block2)
+    block2 = PReLU()(block2)
+    block2 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(block2)
+    block2 = BatchNormalization()(block2)
+    block2 = PReLU()(block2)
+
+    block2_output = add([block2, block1_output])
+    block2_output = MaxPooling1D(pool_size=max_pool_size, strides=max_pool_strides)(block2_output)
+
+    block3 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(block2_output)
+    block3 = BatchNormalization()(block3)
+    block3 = PReLU()(block3)
+    block3 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(block3)
+    block3 = BatchNormalization()(block3)
+    block3 = PReLU()(block3)
+
+    block3_output = add([block3, block2_output])
+    block3_output = MaxPooling1D(pool_size=max_pool_size, strides=max_pool_strides)(block3_output)
+
+    block4 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(block3_output)
+    block4 = BatchNormalization()(block4)
+    block4 = PReLU()(block4)
+    block4 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(block4)
+    block4 = BatchNormalization()(block4)
+    block4 = PReLU()(block4)
+
+    block4_output = add([block4, block3_output])
+    block4_output = MaxPooling1D(pool_size=max_pool_size, strides=max_pool_strides)(block4_output)
+
+    block5 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(block4_output)
+    block5 = BatchNormalization()(block5)
+    block5 = PReLU()(block5)
+    block5 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(block5)
+    block5 = BatchNormalization()(block5)
+    block5 = PReLU()(block5)
+
+    block5_output = add([block5, block4_output])
+    block5_output = MaxPooling1D(pool_size=max_pool_size, strides=max_pool_strides)(block5_output)
+
+    block6 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(block5_output)
+    block6 = BatchNormalization()(block6)
+    block6 = PReLU()(block6)
+    block6 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(block6)
+    block6 = BatchNormalization()(block6)
+    block6 = PReLU()(block6)
+
+    block6_output = add([block6, block5_output])
+    block6_output = MaxPooling1D(pool_size=max_pool_size, strides=max_pool_strides)(block6_output)
+
+    block7 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(block6_output)
+    block7 = BatchNormalization()(block7)
+    block7 = PReLU()(block7)
+    block7 = Conv1D(filter_nr, kernel_size=filter_size, padding='same', activation='linear',
+                    kernel_regularizer=conv_kern_reg, bias_regularizer=conv_bias_reg)(block7)
+    block7 = BatchNormalization()(block7)
+    block7 = PReLU()(block7)
+
+    block7_output = add([block7, block6_output])
+    x_words = GlobalMaxPooling1D()(block7_output)
 
     merg_out_text = concatenate(out_text)
     merg_out_text = BatchNormalization()(merg_out_text)
