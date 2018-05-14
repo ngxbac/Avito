@@ -40,6 +40,8 @@ import matplotlib.pyplot as plt
 
 import utils
 
+skip_fold = []
+
 config = json.load(open("config.json"))
 lgb_root = "lbg_root"
 
@@ -63,6 +65,9 @@ skf = KFold(n_folds)
 
 for fold, (train_index, val_index) in enumerate(skf.split(X)):
     print(f"\n[+] Fold {fold}")
+    if fold in skip_fold:
+        print(f"[+] Fold {fold} is skipped")
+        continue
 
     X_train = X[train_index]
     y_train = y[train_index]
