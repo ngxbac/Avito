@@ -40,7 +40,7 @@ import matplotlib.pyplot as plt
 
 import utils
 
-skip_fold = []
+skip_fold = [0, 1, 2, 3, 4, 5]
 
 config = json.load(open("config.json"))
 lgb_root = "lbg_root"
@@ -125,14 +125,14 @@ for fold, (train_index, val_index) in enumerate(skf.split(X)):
     plt.savefig(f'feature_import_fold_{fold}.png')
 
     print("Model Evaluation Stage")
-    print('RMSE:', np.sqrt(metrics.mean_squared_error(y_valid, lgb_clf.predict(X_valid))))
+    lgb_oof_pred = lgb_clf.predict(X_valid)
+    print('RMSE:', np.sqrt(metrics.mean_squared_error(y_valid, lgb_oof_pred)))
     lgpred = lgb_clf.predict(testing)
     lgsub = pd.DataFrame(lgpred, columns=["deal_probability"], index=testdex)
     lgsub['deal_probability'].clip(0.0, 1.0, inplace=True)  # Between 0 and 1
     lgsub.to_csv(f"lgb_sub_fold_{fold}.csv", index=True, header=True)
 
     # Save out of fold
-    lgb_oof_pred = lgb_clf.predict(X_valid)
     lgb_oof = pd.DataFrame(lgb_oof_pred, columns=["deal_probability"], index=val_index)
     lgb_oof['deal_probability'].clip(0.0, 1.0, inplace=True)  # Between 0 and 1
     lgb_oof.to_csv(f"lgb_oof_fold_{fold}.csv", index=True, header=True)
