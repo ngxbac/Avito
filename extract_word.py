@@ -74,6 +74,9 @@ def main():
         utils.save_bcolz(X_train_words, extracted_root, f"X_train_word")
         utils.save_bcolz(X_test_words, extracted_root, f"X_test_word")
 
+    del X_train_words, X_test_words, X_words
+    gc.collect()
+
     print("\n[+] Load pretrained embedding")
     # Use pretrained-weights for embedding
     EMBEDDING_FILE = config["fasttext_vec"]
