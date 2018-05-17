@@ -23,7 +23,7 @@ args = parser.parse_args()
 config = json.load(open("config.json"))
 xgb_root = "xgb_root"
 
-nrows = None
+nrows = 100
 
 if args.feature == "new":
     # Load csv
@@ -56,8 +56,12 @@ if args.feature == "new":
 
     df["price"] = df["price"].apply(np.log1p)
 
-    df['city'] = df['city'] + '_' + df['region']
-    df['has_image'] = pd.notnull(df.image).astype(int)
+    # df['city'] = df['city'] + '_' + df['region']
+    df['no_img'] = pd.isna(df.image).astype(int)
+    df['no_dsc'] = pd.isna(df.description).astype(int)
+    df['no_p1'] = pd.isna(df.param_1).astype(int)
+    df['no_p2'] = pd.isna(df.param_2).astype(int)
+    df['no_p3'] = pd.isna(df.param_3).astype(int)
     df['weekday'] = df['activation_date'].dt.weekday
 
     textfeats = ['description', 'params', 'title']
@@ -65,10 +69,15 @@ if args.feature == "new":
         df[col] = df[col].astype(str)
         df[col] = df[col].fillna('NA')  # FILL NA
         df[col] = df[col].str.lower()  # Lowercase all text, so that capitalized words dont get treated differently
+        df[col] = df[col].str.replace("[^[:alpha:]]", " ")
+        df[col] = df[col].str.replace("\\s+", " ")
         df[col + '_num_chars'] = df[col].apply(len)
         df[col + '_num_words'] = df[col].apply(lambda s: len(s.split()))
         df[col + '_num_unique_words'] = df[col].apply(lambda s: len(set(w for w in s.split())))
         df[col + '_words_vs_unique'] = df[col+'_num_unique_words'] / df[col+'_num_words'] * 100
+        df[col + '_num_cap'] = df[col].str.count("[A-ZА-Я]")
+        df[col + '_num_pun'] = df[col].str.count("[[:punct:]]")
+        df[col + '_num_dig'] = df[col].str.count("[[:digit:]]")
 
     cat_cols = ['user_id', 'region', 'city', 'parent_category_name', 'category_name',
                 'param_1', 'param_2', 'param_3', 'user_type', 'image_top_1',
@@ -79,7 +88,7 @@ if args.feature == "new":
     for col in cat_cols:
         df[col] = lbl.fit_transform(df[col].astype(str))
 
-    print(df.head(5).T)
+    # print(df.head(5).T)
     X = df[:n_train]
     test = df[n_train:]
 
@@ -144,11 +153,12 @@ if args.feature == "new":
     y_train = X_train_df['deal_probability']
     y_val = X_val_df['deal_probability']
 
-    utils.save_features(X_train, xgb_root, "X_train")
-    utils.save_features(X_val, xgb_root, "X_val")
-    utils.save_features(test, xgb_root, "test")
-    utils.save_features(y_train, xgb_root, "y_train")
-    utils.save_features(y_val, xgb_root, "y_val")
+    if nrows is None:
+        utils.save_features(X_train, xgb_root, "X_train")
+        utils.save_features(X_val, xgb_root, "X_val")
+        utils.save_features(test, xgb_root, "test")
+        utils.save_features(y_train, xgb_root, "y_train")
+        utils.save_features(y_val, xgb_root, "y_val")
 
 elif args.feature == "load":
     print("[+] Load features ")
