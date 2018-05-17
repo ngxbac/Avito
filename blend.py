@@ -1,14 +1,62 @@
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+import os
 
 # Any results you write to the current directory are saved as output.
 
-b1 = pd.read_csv('./blending/lgsub_02242LB.csv').rename(columns={'deal_probability':'dp1'})
-b2 = pd.read_csv('./blending/xgb_tfidf0.21864_02241LB.csv').rename(columns={'deal_probability':'dp2'})
-b3 = pd.read_csv('./blending/keras_keras_60k_d300_10fold_avg_02233LB.csv').rename(columns={'deal_probability':'dp3'})
+root = "model_bag"
 
-b1 = pd.merge(b1, b2, how='left', on='item_id')
-b1 = pd.merge(b1, b3, how='left', on='item_id')
+model_bag = [
+    {
+        "name": "xgboost",
+        "path": f"{root}/xgb_tfidf0.21864_02241LB.csv",
+        "score": 0.2241,
+        "weight": 0.5,
+    },
+    {
+        "name": "LightGBM",
+        "path": f"{root}/lgsub_ridge_02239LB.csv",
+        "score": 0.2239,
+        "weight": 0.30,
+    },
+    # {
+    #     "name": "BlendCNN",
+    #     "path": f"{root}/blend_cnn.csv",
+    #     "score": 0.2226,
+    # },
+    # {
+    #     "name": "keras_birgu",
+    #     "path": f"{root}/keras_keras_50k_d300_100w_avg.csv",
+    #     "score": 0.2232,
+    #     "weight": 0.20,
+    # },
+    {
+        "name": "keras_cnn",
+        "path": f"{root}/keras_cnn_50k_300d_100w_avg.csv",
+        "score": 0.2228,
+        "weight": 0.10,
+    },
+    {
+        "name": "revert_label",
+        "path": f"{root}/revert_label.csv",
+        "score": 0.2232,
+        "weight": 0.10,
+    }
+]
 
-b1['deal_probability'] = (b1['dp1'] * 1/3) + (b2['dp2'] * 1/3) + (b3['dp3'] * 1/3)
-b1[['item_id','deal_probability']].to_csv('./blending/blend_xgb_lbg_cnn_update.csv', index=False)
+preds = []
+for model in model_bag:
+    print("\n[+] Load model {}".format(model["name"]))
+    print("[+] Score {}".format(model["score"]))
+    print("[+] path {}".format(model["path"]))
+    label  = pd.read_csv(str(model["path"]))
+    weight = model["weight"]
+    preds.append(weight * label["deal_probability"].values)
+
+preds = np.array(preds)
+pred_mean = np.sum(preds, axis=0)
+
+df = pd.DataFrame()
+df['item_id'] = label['item_id']
+df['deal_probability'] = pred_mean
+df.to_csv(f'{root}/blend_weighted.csv',index=False)
