@@ -23,7 +23,7 @@ args = parser.parse_args()
 config = json.load(open("config.json"))
 xgb_root = "xgb_root"
 
-nrows = 100
+nrows = None
 
 if args.feature == "new":
     # Load csv
@@ -99,53 +99,47 @@ if args.feature == "new":
         dtype=np.float32,
     )
 
-    if 0:
-        print("\n[+] Title TFIDF features ")
+    print("\n[+] Title TFIDF features ")
 
-        train_titles = titles_tfidf.fit_transform(X_train_df.title.astype(str))
-        val_titles = titles_tfidf.transform(X_val_df.title.astype(str))
-        test_titles = titles_tfidf.transform(test.title.astype(str))
+    train_titles = titles_tfidf.fit_transform(X_train_df.title.astype(str))
+    val_titles = titles_tfidf.transform(X_val_df.title.astype(str))
+    test_titles = titles_tfidf.transform(test.title.astype(str))
 
-        desc_tfidf = TfidfVectorizer(
-            stop_words=russian_stop,
-            max_features=10000,
-            norm='l2',
-            sublinear_tf=True,
-            smooth_idf=False,
-            dtype=np.float32,
-        )
+    desc_tfidf = TfidfVectorizer(
+        stop_words=russian_stop,
+        max_features=10000,
+        norm='l2',
+        sublinear_tf=True,
+        smooth_idf=False,
+        dtype=np.float32,
+    )
 
-        print("\n[+] Description TFIDF features ")
+    print("\n[+] Description TFIDF features ")
 
-        train_desc = desc_tfidf.fit_transform(X_train_df.description.astype(str))
-        val_desc = desc_tfidf.transform(X_val_df.description.astype(str))
-        test_desc = desc_tfidf.transform(test.description.astype(str))
+    train_desc = desc_tfidf.fit_transform(X_train_df.description.astype(str))
+    val_desc = desc_tfidf.transform(X_val_df.description.astype(str))
+    test_desc = desc_tfidf.transform(test.description.astype(str))
 
-        params_cv = CountVectorizer(
-            stop_words=russian_stop,
-            max_features=5000,
-            dtype=np.float32,
-        )
+    params_cv = CountVectorizer(
+        stop_words=russian_stop,
+        max_features=5000,
+        dtype=np.float32,
+    )
 
-        print("\n[+] Params TFIDF features ")
+    print("\n[+] Params TFIDF features ")
 
-        train_params = params_cv.fit_transform(X_train_df.params.astype(str))
-        val_params = params_cv.transform(X_val_df.params.astype(str))
-        test_params = params_cv.transform(test.params.astype(str))
+    train_params = params_cv.fit_transform(X_train_df.params.astype(str))
+    val_params = params_cv.transform(X_val_df.params.astype(str))
+    test_params = params_cv.transform(test.params.astype(str))
 
-        columns_to_drop = ['title', 'description', 'params', 'image',
-                           'activation_date', 'deal_probability']
+    columns_to_drop = ['title', 'description', 'params', 'image',
+                       'activation_date', 'deal_probability']
 
 
-        X_train = hstack([csr_matrix(X_train_df.drop(columns_to_drop, axis=1)), train_titles, train_desc, train_params])
-        X_val = hstack([csr_matrix(X_val_df.drop(columns_to_drop, axis=1)), val_titles, val_desc, val_params])
-        test = hstack([csr_matrix(test.drop(columns_to_drop, axis=1)), test_titles, test_desc, test_params])
-    else:
-        columns_to_drop = ['title', 'description', 'params', 'image',
-                           'activation_date', 'deal_probability']
-        X_train = csr_matrix(X_train_df.drop(columns_to_drop, axis=1))
-        X_val = csr_matrix(X_val_df.drop(columns_to_drop, axis=1))
-        test = csr_matrix(test.drop(columns_to_drop, axis=1))
+    X_train = hstack([csr_matrix(X_train_df.drop(columns_to_drop, axis=1)), train_titles, train_desc, train_params])
+    X_val = hstack([csr_matrix(X_val_df.drop(columns_to_drop, axis=1)), val_titles, val_desc, val_params])
+    test = hstack([csr_matrix(test.drop(columns_to_drop, axis=1)), test_titles, test_desc, test_params])
+
 
     y_train = X_train_df['deal_probability']
     y_val = X_val_df['deal_probability']
@@ -155,6 +149,7 @@ if args.feature == "new":
     utils.save_features(test, xgb_root, "test")
     utils.save_features(y_train, xgb_root, "y_train")
     utils.save_features(y_val, xgb_root, "y_val")
+
 elif args.feature == "load":
     print("[+] Load features ")
     X_train = utils.load_features(xgb_root, "X_train").any()
@@ -181,15 +176,12 @@ params = {
     'gamma': 0,
     'subsample': 0.75,
     'colsample_bytree': 0.7,
+    'silent': True,
     'alpha': 1.95,
     'lambda': 0,
     # 'updater': 'grow_gpu',
     # 'tree_method':'exact'
 }
-
-print("X train {}".format(X_train.shape))
-print("X va {}".format(X_val.shape))
-print("test {}".format(test.shape))
 
 
 xg_train = xgb.DMatrix(X_train, label=y_train)
