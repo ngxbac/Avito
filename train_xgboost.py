@@ -163,6 +163,9 @@ elif args.feature == "load":
 
     X_train, X_val, y_train, y_val = train_test_split(X, y, shuffle=True, test_size=0.1, random_state=42)
 
+    print(y_train)
+    print(y_val)
+
 
 # Leave most parameters as default
 params = {
@@ -170,6 +173,7 @@ params = {
     'booster': "gbtree",
     'eval_metric': "rmse",
     # 'tree_method': 'gpu_hist',
+    'gpu_id': 0,
     'max_depth': 18,
     'eta': 0.05,
     'min_child_weight': 9,
@@ -179,6 +183,8 @@ params = {
     'silent': True,
     'alpha': 1.95,
     'lambda': 0,
+    'nthread': 8,
+    # 'max_bin': 16,
     # 'updater': 'grow_gpu',
     # 'tree_method':'exact'
 }
@@ -190,7 +196,7 @@ xg_test = xgb.DMatrix(test)
 gpu_res = {} # Store accuracy result
 watchlist = [(xg_train, 'train'), (xg_val, 'val')]
 num_round = 10000
-bst = xgb.train(params, xg_train, num_round, evals=watchlist, early_stopping_rounds=200, evals_result=gpu_res, verbose_eval=100)
+bst = xgb.train(params, xg_train, num_round, evals=watchlist, early_stopping_rounds=200, evals_result=gpu_res, verbose_eval=5)
 pred = bst.predict(xg_test)
 print(len(pred))
 sub = pd.read_csv(config["sample_submission"],  nrows=nrows)
