@@ -37,7 +37,7 @@ class Capsule(Layer):
                                      shape=(1, input_dim_capsule,
                                             self.num_capsule * self.dim_capsule),
                                      # shape=self.kernel_size,
-                                     initializer='glorot_uniform',
+                                     initializer='glorot_normal',
                                      trainable=True)
         else:
             input_num_capsule = input_shape[-2]
@@ -45,7 +45,7 @@ class Capsule(Layer):
                                      shape=(input_num_capsule,
                                             input_dim_capsule,
                                             self.num_capsule * self.dim_capsule),
-                                     initializer='glorot_uniform',
+                                     initializer='glorot_normal',
                                      trainable=True)
 
     def call(self, u_vecs):
@@ -118,7 +118,7 @@ class AttentionWithContext(Layer):
                  bias=True, **kwargs):
 
         self.supports_masking = True
-        self.init = initializers.get('glorot_uniform')
+        self.init = initializers.get('glorot_normal')
 
         self.W_regularizer = regularizers.get(W_regularizer)
         self.u_regularizer = regularizers.get(u_regularizer)

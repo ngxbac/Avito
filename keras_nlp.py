@@ -88,7 +88,7 @@ def get_model(args):
 
     out_cat = []
     for x, tkl in zip(input_cat, token_len):
-        x = Embedding(tkl + 1, config["embedding_size"], embeddings_initializer="glorot_normal", )(x)
+        x = Embedding(tkl + 1, config["embedding_size"], embeddings_initializer="glorot_normal")(x)
         x = SpatialDropout1D(0.25)(x)
         x = Flatten()(x)
         out_cat.append(x)
@@ -98,7 +98,7 @@ def get_model(args):
     for x, text_size in zip(input_text, text_input_size):
         x = BatchNormalization()(x)
         x = Dropout(0.5)(x)
-        x = Dense(text_size // 100, activation="linear", kernel_initializer="glorot_normal")(x)
+        x = Dense(32, activation="linear", kernel_initializer="glorot_normal")(x)
         x = Dropout(0.5)(x)
         out_text.append(x)
 
@@ -161,10 +161,11 @@ def train(args):
                                  mode='min')
     early = EarlyStopping(monitor="val_loss", mode="min", patience=5, min_delta=1e-4)
     lr_reduced = ReduceLROnPlateau(monitor='val_loss',
-                                   factor=0.5,
+                                   factor=0.1,
                                    patience=3,
                                    verbose=1,
                                    epsilon=1e-4,
+                                   min_lr=1e-5,
                                    mode='min')
 
     list_train_cat = [X_cat[:, i] for i in range(X_cat.shape[1])]
