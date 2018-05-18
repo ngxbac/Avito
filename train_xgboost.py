@@ -23,7 +23,7 @@ args = parser.parse_args()
 config = json.load(open("config.json"))
 xgb_root = "xgb_root"
 
-nrows = 100
+nrows = None
 
 if args.feature == "new":
     # Load csv
@@ -32,6 +32,8 @@ if args.feature == "new":
     train_df = train_df.replace(np.nan, -1, regex=True)
     test_df = pd.read_csv(config["train_csv"], parse_dates = ["activation_date"], index_col="item_id", nrows=nrows)
     test_df = test_df.replace(np.nan, -1, regex=True)
+
+    user_df = pd.read_csv('./aggregated-features-lightgbm/aggregated_features.csv', nrows=nrows)
 
     # Merge two dataframes
     n_train = len(train_df)
@@ -89,13 +91,63 @@ if args.feature == "new":
     # Encoder:
     lbl = preprocessing.LabelEncoder()
     for col in cat_cols:
-        df[col] = lbl.fit_transform(df[col].astype(str))
+        df[col], _ = pd.factorize(df[col])
 
     # print(df.head(5).T)
     X = df[:n_train]
     test = df[n_train:]
 
     X_train_df, X_val_df = train_test_split(X, shuffle=True, test_size=0.1, random_state=42)
+
+
+    class FeaturesStatistics():
+        def __init__(self, cols):
+            self._stats = None
+            self._agg_cols = cols
+
+        def fit(self, df):
+            '''
+            Compute the mean and std of some features from a given data frame
+            '''
+            self._stats = {}
+
+            # For each feature to be aggregated
+            for c in tqdm(self._agg_cols, total=len(self._agg_cols)):
+                # Compute the mean and std of the deal prob and the price.
+                gp = df.groupby(c)[['deal_probability', 'price']]
+                desc = gp.describe()
+                self._stats[c] = desc[[('deal_probability', 'mean'), ('deal_probability', 'std'),
+                                       ('price', 'mean'), ('price', 'std')]]
+
+        def transform(self, df):
+            '''
+            Add the mean features statistics computed from another dataset.
+            '''
+            # For each feature to be aggregated
+            for c in tqdm(self._agg_cols, total=len(self._agg_cols)):
+                # Add the deal proba and price statistics corrresponding to the feature
+                df[c + '_dp_mean'] = df[c].map(self._stats[c][('deal_probability', 'mean')])
+                df[c + '_dp_std'] = df[c].map(self._stats[c][('deal_probability', 'std')])
+                df[c + '_price_mean'] = df[c].map(self._stats[c][('price', 'mean')])
+                df[c + '_price_std'] = df[c].map(self._stats[c][('price', 'std')])
+
+                df[c + '_to_price'] = df.price / df[c + '_price_mean']
+                df[c + '_to_price'] = df[c + '_to_price'].fillna(1.0)
+
+        def fit_transform(self, df):
+            '''
+            First learn the feature statistics, then add them to the dataframe.
+            '''
+            self.fit(df)
+            self.transform(df)
+
+
+    fStats = FeaturesStatistics(['region', 'city', 'parent_category_name', 'category_name',
+                                 'param_1', 'param_2', 'param_3', 'user_type', 'image_top_1'])
+
+    fStats.fit_transform(X_train_df)
+    fStats.transform(X_val_df)
+    fStats.transform(test)
 
     ###############################################################################
     print("\n[+] TFIDF features ")
@@ -109,7 +161,6 @@ if args.feature == "new":
         sublinear_tf=True,
         smooth_idf=False,
         dtype=np.float32,
-        ngram_range=(1, 2),
     )
 
     print("\n[+] Title TFIDF features ")
@@ -125,7 +176,6 @@ if args.feature == "new":
         sublinear_tf=True,
         smooth_idf=False,
         dtype=np.float32,
-        ngram_range=(1, 2),
     )
 
     print("\n[+] Description TFIDF features ")
@@ -134,26 +184,24 @@ if args.feature == "new":
     val_desc = desc_tfidf.transform(X_val_df.description.astype(str))
     test_desc = desc_tfidf.transform(test.description.astype(str))
 
-    # params_cv = CountVectorizer(
-    #     stop_words=russian_stop,
-    #     max_features=5000,
-    #     dtype=np.float32,
-    #     ngram_range=(1, 2),
-    # )
+    params_cv = CountVectorizer(
+        stop_words=russian_stop,
+        max_features=5000,
+        dtype=np.float32
+    )
 
-    # print("\n[+] Params TFIDF features ")
+    print("\n[+] Params TFIDF features ")
 
-    # train_params = params_cv.fit_transform(X_train_df.params.astype(str))
-    # val_params = params_cv.transform(X_val_df.params.astype(str))
-    # test_params = params_cv.transform(test.params.astype(str))
+    train_params = params_cv.fit_transform(X_train_df.params.astype(str))
+    val_params = params_cv.transform(X_val_df.params.astype(str))
+    test_params = params_cv.transform(test.params.astype(str))
 
     columns_to_drop = ['title', 'description', 'params', 'image',
                        'activation_date', 'deal_probability', 'user_id']
 
-    X_train = hstack([csr_matrix(X_train_df.drop(columns_to_drop, axis=1)), train_titles, train_desc])
-    X_val = hstack([csr_matrix(X_val_df.drop(columns_to_drop, axis=1)), val_titles, val_desc])
-    test = hstack([csr_matrix(test.drop(columns_to_drop, axis=1)), test_titles, test_desc])
-
+    X_train = hstack([csr_matrix(X_train_df.drop(columns_to_drop, axis=1)), train_titles, train_desc, train_params])
+    X_val = hstack([csr_matrix(X_val_df.drop(columns_to_drop, axis=1)), val_titles, val_desc, val_params])
+    test = hstack([csr_matrix(test.drop(columns_to_drop, axis=1)), test_titles, test_desc, test_params])
 
     y_train = X_train_df['deal_probability']
     y_val = X_val_df['deal_probability']
