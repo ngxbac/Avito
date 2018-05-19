@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings('ignore')
+
 import numpy as  np
 import pandas as pd
 import os
@@ -24,16 +27,19 @@ config = json.load(open("config.json"))
 xgb_root = "xgb_root"
 
 nrows = None
+sub = pd.read_csv(config["sample_submission"],  nrows=nrows)
+len_sub = len(sub)
+print("Sample submission len {}".format(len_sub))
 
 if args.feature == "new":
     # Load csv
     print("\n[+] Load csv ")
     train_df = pd.read_csv(config["train_csv"], parse_dates = ["activation_date"], index_col="item_id", nrows=nrows)
     train_df = train_df.replace(np.nan, -1, regex=True)
-    test_df = pd.read_csv(config["train_csv"], parse_dates = ["activation_date"], index_col="item_id", nrows=nrows)
+    test_df = pd.read_csv(config["test_csv"], parse_dates = ["activation_date"], index_col="item_id", nrows=nrows)
     test_df = test_df.replace(np.nan, -1, regex=True)
 
-    user_df = pd.read_csv('./aggregated-features-lightgbm/aggregated_features.csv', nrows=nrows)
+    user_df = pd.read_csv('./aggregated_features.csv', nrows=nrows)
 
     # Merge two dataframes
     n_train = len(train_df)
@@ -230,6 +236,9 @@ elif args.feature == "load":
     print(y_val)
 
 
+print("Test size {}".format(test.shape[0]))
+# assert len_sub != test.shape[0]
+
 # Leave most parameters as default
 params = {
     'objective': 'reg:logistic',
@@ -246,7 +255,7 @@ params = {
     'silent': True,
     'alpha': 1.95,
     'lambda': 0,
-    'nthread': 8,
+    'nthread': 24,
     # 'max_bin': 16,
     # 'updater': 'grow_gpu',
     # 'tree_method':'exact'
@@ -260,8 +269,8 @@ watchlist = [(xg_train, 'train'), (xg_val, 'val')]
 num_round = 10000
 bst = xgb.train(params, xg_train, num_round, evals=watchlist, early_stopping_rounds=200, evals_result=gpu_res, verbose_eval=50)
 pred = bst.predict(xg_test)
-print(len(pred))
-sub = pd.read_csv(config["sample_submission"],  nrows=nrows)
+# print(len(pred))
+# sub = pd.read_csv(config["sample_submission"],  nrows=nrows)
 sub['deal_probability'] = pred
 sub['deal_probability'].clip(0.0, 1.0, inplace=True)
 sub.to_csv('submission_xgboost.csv', index=False)
