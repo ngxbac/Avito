@@ -105,8 +105,8 @@ def CapsuleNet(inputs, max_features, embed_size, embedding_matrix):
     x = Bidirectional(CuDNNGRU(50, return_sequences=True))(x)
     x = PReLU()(x)
     x = Capsule(
-        num_capsule=10, dim_capsule=16,
-        routings=5, share_weights=True)(x)
+        num_capsule=5, dim_capsule=8,
+        routings=3, share_weights=True)(x)
     x = Flatten()(x)
 
     return x
