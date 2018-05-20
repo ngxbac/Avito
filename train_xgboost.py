@@ -7,12 +7,8 @@ import os
 import json
 import gc
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import mean_squared_error
-from math import sqrt
-from sklearn.model_selection import KFold
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import Ridge
 from tqdm import tqdm
 from scipy.sparse import hstack, csr_matrix, vstack
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
@@ -26,50 +22,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('feature', choices=['load', 'new'])
 args = parser.parse_args()
 
-
-NFOLDS = 5
-SEED = 42
-# Ridge params, no random state
-ridge_params = {'alpha':20.0, 'fit_intercept':True, 'normalize':False, 'copy_X':True,
-                'max_iter':None, 'tol':0.001, 'solver':'auto', 'random_state':SEED}
-
-class SklearnWrapper(object):
-    def __init__(self, clf, seed=0, params=None, seed_bool=True):
-        if (seed_bool == True):
-            params['random_state'] = seed
-        self.clf = clf(**params)
-
-    def train(self, x_train, y_train):
-        self.clf.fit(x_train, y_train)
-
-    def predict(self, x):
-        return self.clf.predict(x)
-
-
-def get_oof(clf, x_train, y, x_test, kf):
-    oof_train = np.zeros((x_train.shape[0],))
-    oof_test = np.zeros((x_test.shape[0],))
-    oof_test_skf = np.empty((NFOLDS, x_test.shape[0]))
-
-    for i, (train_index, test_index) in enumerate(kf.split(x_train)):
-        print('\n[+] Fold {}'.format(i))
-        x_tr = x_train[train_index]
-        y_tr = y[train_index]
-        x_te = x_train[test_index]
-
-        clf.train(x_tr, y_tr)
-
-        oof_train[test_index] = clf.predict(x_te)
-        oof_test_skf[i, :] = clf.predict(x_test)
-
-    oof_test[:] = oof_test_skf.mean(axis=0)
-    return oof_train.reshape(-1, 1), oof_test.reshape(-1, 1)
-
 # Load config
 config = json.load(open("config.json"))
 xgb_root = "xgb_root"
 
-nrows = 10
+nrows = None
 sub = pd.read_csv(config["sample_submission"],  nrows=nrows)
 len_sub = len(sub)
 print("Sample submission len {}".format(len_sub))
@@ -83,12 +40,17 @@ if args.feature == "new":
     test_df = test_df.replace(np.nan, -1, regex=True)
 
     user_df = pd.read_csv('./aggregated_features.csv', nrows=nrows)
+    # city_region_unique = pd.read_csv('./avito_region_city_features.csv', nrows=nrows)
 
     # Merge two dataframes
     n_train = len(train_df)
     df = pd.concat([train_df, test_df])
     del train_df, test_df
     gc.collect()
+    
+    print("before:", df.shape)
+    df = pd.merge(left=df, right=user_df, how="left", on=["user_id"])
+    print("after :", df.shape)
 
     # Fillin missing data
     for col in ["description", "title", "param_1", "param_2", "param_3"]:
@@ -245,33 +207,15 @@ if args.feature == "new":
     val_params = params_cv.transform(X_val_df.params.astype(str))
     test_params = params_cv.transform(test.params.astype(str))
 
-    print("\n[+] Ridge features ")
-    meta_train = hstack([train_titles, train_desc, train_params])
-    meta_val = hstack([val_titles, val_desc, val_params])
-    meta_test = hstack([test_titles, test_desc, test_params])
-    meta = hstack([meta_train, meta_val])
-
-    y_train = X_train_df['deal_probability']
-    y_val = X_val_df['deal_probability']
-    y = np.concatenate((y_train, y_val))
-
-    kf = KFold(NFOLDS, shuffle=True, random_state=SEED)
-    ridge = SklearnWrapper(clf=Ridge, seed=SEED, params=ridge_params)
-    ridge_oof_train, ridge_oof_test = get_oof(ridge, meta, y, meta_test, kf)
-
-    rms = sqrt(mean_squared_error(y, ridge_oof_train))
-    print('[+] Ridge OOF RMSE: {}'.format(rms))
-
-    X_train_df["ridge_preds"] = ridge_oof_train[:len(X_train_df)]
-    X_val_df["ridge_preds"] = ridge_oof_train[len(X_train_df):]
-    test["ridge_preds"] = ridge_oof_test
-
     columns_to_drop = ['title', 'description', 'params', 'image',
                        'activation_date', 'deal_probability', 'user_id']
 
     X_train = hstack([csr_matrix(X_train_df.drop(columns_to_drop, axis=1)), train_titles, train_desc, train_params])
     X_val = hstack([csr_matrix(X_val_df.drop(columns_to_drop, axis=1)), val_titles, val_desc, val_params])
     test = hstack([csr_matrix(test.drop(columns_to_drop, axis=1)), test_titles, test_desc, test_params])
+
+    y_train = X_train_df['deal_probability']
+    y_val = X_val_df['deal_probability']
 
     if nrows is None:
         utils.save_features(X_train, xgb_root, "X_train")
@@ -297,7 +241,7 @@ elif args.feature == "load":
     print(y_val)
 
 
-# print("Test size {}".format(test.shape[0]))
+print("Test size {}".format(test.shape[0]))
 # assert len_sub != test.shape[0]
 
 # Leave most parameters as default
