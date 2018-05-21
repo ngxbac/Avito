@@ -80,6 +80,8 @@ if args.feature == "new":
     df['no_p3'] = pd.isna(df.param_3).astype(int)
     df['weekday'] = df['activation_date'].dt.weekday
     # df['monthday'] = df['activation_date'].dt.day
+    df["item_seq_bin"] = df["item_seq_number"] // 100
+    df["ads_count"] = df.groupby("user_id", as_index=False)["user_id"].transform(lambda s: s.count())
 
     textfeats = ['description', 'params', 'title']
     for col in textfeats:
@@ -92,12 +94,15 @@ if args.feature == "new":
         df[col + '_num_words'] = df[col].apply(lambda s: len(s.split()))
         # df[col + '_num_unique_words'] = df[col].apply(lambda s: len(set(w for w in s.split())))
         # df[col + '_words_vs_unique'] = df[col+'_num_unique_words'] / df[col+'_num_words'] * 100
-        df[col + '_num_cap'] = df[col].str.count("[A-ZА-Я]")
+        df[col + '_num_capE'] = df[col].str.count("[A-Z]")
+        df[col + '_num_capR'] = df[col].str.count("[А-Я]")
+        df[col + '_num_lowE'] = df[col].str.count("[a-z]")
+        df[col + '_num_lowR'] = df[col].str.count("[а-я]")
         df[col + '_num_pun'] = df[col].str.count("[[:punct:]]")
         df[col + '_num_dig'] = df[col].str.count("[[:digit:]]")
 
     cat_cols = ['region', 'city', 'parent_category_name', 'category_name',
-                'param_1', 'param_2', 'param_3', 'user_type', 'image_top_1']
+                'param_1', 'param_2', 'param_3', 'user_type', 'image_top_1', "item_seq_bin"]
 
     # Encoder:
     lbl = preprocessing.LabelEncoder()
@@ -154,7 +159,7 @@ if args.feature == "new":
 
 
     fStats = FeaturesStatistics(['region', 'city', 'parent_category_name', 'category_name',
-                                 'param_1', 'param_2', 'param_3', 'user_type', 'image_top_1'])
+                                 'param_1', 'param_2', 'param_3', 'user_type', 'image_top_1', "item_seq_bin"])
 
     fStats.fit_transform(X_train_df)
     fStats.transform(X_val_df)
@@ -253,12 +258,12 @@ params = {
     'gpu_id': 0,
     'max_depth': 21,
     'eta': 0.05,
-    'min_child_weight': 9,
+    'min_child_weight': 11,
     'gamma': 0,
-    'subsample': 0.75,
+    'subsample': 0.85,
     'colsample_bytree': 0.7,
     'silent': True,
-    'alpha': 1.95,
+    'alpha': 2.0,
     'lambda': 0,
     'nthread': 24,
     # 'max_bin': 16,
