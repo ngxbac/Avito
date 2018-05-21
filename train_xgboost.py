@@ -6,12 +6,14 @@ import pandas as pd
 import os
 import json
 import gc
+import re
 from sklearn.preprocessing import LabelEncoder
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from scipy.sparse import hstack, csr_matrix, vstack
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.decomposition import TruncatedSVD
 from nltk.corpus import stopwords
 import utils
 import argparse
@@ -34,9 +36,9 @@ print("Sample submission len {}".format(len_sub))
 if args.feature == "new":
     # Load csv
     print("\n[+] Load csv ")
-    train_df = pd.read_csv(config["train_csv"], parse_dates = ["activation_date"], index_col="item_id", nrows=nrows)
+    train_df = pd.read_csv("./train_norm.csv", parse_dates = ["activation_date"], index_col="item_id", nrows=nrows)
     train_df = train_df.replace(np.nan, -1, regex=True)
-    test_df = pd.read_csv(config["test_csv"], parse_dates = ["activation_date"], index_col="item_id", nrows=nrows)
+    test_df = pd.read_csv("./test_norm.csv", parse_dates = ["activation_date"], index_col="item_id", nrows=nrows)
     test_df = test_df.replace(np.nan, -1, regex=True)
 
     user_df = pd.read_csv('./aggregated_features.csv', nrows=nrows)
@@ -47,20 +49,19 @@ if args.feature == "new":
     df = pd.concat([train_df, test_df])
     del train_df, test_df
     gc.collect()
-    
-    print("before:", df.shape)
+
     df = pd.merge(left=df, right=user_df, how="left", on=["user_id"])
-    print("after :", df.shape)
+    df.rename({'description_norm': 'description', 'title_norm': 'title'}, axis='columns', inplace=True)
 
     # Fillin missing data
     for col in ["description", "title", "param_1", "param_2", "param_3"]:
         df[col] = df[col].fillna(" ")
 
-    df["params"] = df.apply(lambda row: " ".join([
-        str(row["param_1"]),
-        str(row["param_2"]),
-        str(row["param_3"]),
-    ]), axis=1)
+    # df["params"] = df.apply(lambda row: " ".join([
+    #     str(row["param_1"]),
+    #     str(row["param_2"]),
+    #     str(row["param_3"]),
+    # ]), axis=1)
 
     # # Fill-in missing value by mean
     # for col in ["price", "image_top_1"]:
@@ -83,6 +84,15 @@ if args.feature == "new":
     df["item_seq_bin"] = df["item_seq_number"] // 100
     df["ads_count"] = df.groupby("user_id", as_index=False)["user_id"].transform(lambda s: s.count())
 
+    # Fill NA for text features
+    cols_to_fill = ['description', 'param_1', 'param_2', 'param_3']
+    df[cols_to_fill] = df[cols_to_fill].fillna('')
+
+    # Redefine features
+    df['param_2'] = df['param_1'] + ' ' + df['param_2']
+    df['param_3'] = df['param_2'] + ' ' + df['param_3']
+    df['params'] = df['param_3']
+
     textfeats = ['description', 'params', 'title']
     for col in textfeats:
         df[col] = df[col].astype(str)
@@ -101,9 +111,27 @@ if args.feature == "new":
         df[col + '_num_pun'] = df[col].str.count("[[:punct:]]")
         df[col + '_num_dig'] = df[col].str.count("[[:digit:]]")
 
+    # Clean title and description
+    def cleanName(text):
+        try:
+            textProc = text.lower()
+            textProc = " ".join(map(str.strip, re.split('(\d+)', textProc)))
+            regex = re.compile(u'[^[:alpha:]]')
+            textProc = regex.sub(" ", textProc)
+            textProc = " ".join(textProc.split())
+            return textProc
+        except:
+            return text
+
+
+    print("\n[+] Clean title and description ")
+    df['title'] = df['title'].apply(lambda x: cleanName(x))
+    df['description'] = df['description'].apply(lambda x: cleanName(x))
+
     cat_cols = ['region', 'city', 'parent_category_name', 'category_name',
                 'param_1', 'param_2', 'param_3', 'user_type', 'image_top_1', "item_seq_bin"]
 
+    print("\n[+] Categorical encoding ")
     # Encoder:
     lbl = preprocessing.LabelEncoder()
     for col in cat_cols:
@@ -130,10 +158,10 @@ if args.feature == "new":
             # For each feature to be aggregated
             for c in tqdm(self._agg_cols, total=len(self._agg_cols)):
                 # Compute the mean and std of the deal prob and the price.
-                gp = df.groupby(c)[['deal_probability', 'price']]
+                gp = df.groupby(c)[['deal_probability', 'price', 'image_top_1']]
                 desc = gp.describe()
                 self._stats[c] = desc[[('deal_probability', 'mean'), ('deal_probability', 'std'),
-                                       ('price', 'mean'), ('price', 'std')]]
+                                       ('price', 'mean')]]
 
         def transform(self, df):
             '''
@@ -145,7 +173,6 @@ if args.feature == "new":
                 df[c + '_dp_mean'] = df[c].map(self._stats[c][('deal_probability', 'mean')])
                 df[c + '_dp_std'] = df[c].map(self._stats[c][('deal_probability', 'std')])
                 df[c + '_price_mean'] = df[c].map(self._stats[c][('price', 'mean')])
-                df[c + '_price_std'] = df[c].map(self._stats[c][('price', 'std')])
 
                 df[c + '_to_price'] = df.price / df[c + '_price_mean']
                 df[c + '_to_price'] = df[c + '_to_price'].fillna(1.0)
@@ -158,6 +185,7 @@ if args.feature == "new":
             self.transform(df)
 
 
+    print("\n[+] Feature statistic ")
     fStats = FeaturesStatistics(['region', 'city', 'parent_category_name', 'category_name',
                                  'param_1', 'param_2', 'param_3', 'user_type', 'image_top_1', "item_seq_bin"])
 
@@ -172,7 +200,8 @@ if args.feature == "new":
 
     titles_tfidf = TfidfVectorizer(
         stop_words=russian_stop,
-        max_features=6500,
+        ngram_range=(1,3),
+        max_features=10000,
         norm='l2',
         sublinear_tf=True,
         smooth_idf=False,
@@ -181,13 +210,15 @@ if args.feature == "new":
 
     print("\n[+] Title TFIDF features ")
 
-    train_titles = titles_tfidf.fit_transform(X_train_df.title.astype(str))
+    all_titles = titles_tfidf.fit(df.title)
+    train_titles = titles_tfidf.transform(X_train_df.title.astype(str))
     val_titles = titles_tfidf.transform(X_val_df.title.astype(str))
     test_titles = titles_tfidf.transform(test.title.astype(str))
 
     desc_tfidf = TfidfVectorizer(
         stop_words=russian_stop,
-        max_features=6500,
+        ngram_range=(1,3),
+        max_features=10000,
         norm='l2',
         sublinear_tf=True,
         smooth_idf=False,
@@ -196,21 +227,80 @@ if args.feature == "new":
 
     print("\n[+] Description TFIDF features ")
 
-    train_desc = desc_tfidf.fit_transform(X_train_df.description.astype(str))
+    all_desc = desc_tfidf.fit(df.description)
+    train_desc = desc_tfidf.transform(X_train_df.description.astype(str))
     val_desc = desc_tfidf.transform(X_val_df.description.astype(str))
     test_desc = desc_tfidf.transform(test.description.astype(str))
 
     params_cv = CountVectorizer(
         stop_words=russian_stop,
+        ngram_range=(1, 2),
         max_features=5000,
         dtype=np.float32
     )
 
     print("\n[+] Params TFIDF features ")
 
+    all_params = params_cv.fit(df.params)
     train_params = params_cv.fit_transform(X_train_df.params.astype(str))
     val_params = params_cv.transform(X_val_df.params.astype(str))
     test_params = params_cv.transform(test.params.astype(str))
+
+    ###############################################################################
+    print("\n[+] SVD features ")
+
+    n_comp = 3
+
+    svd_titles = TruncatedSVD(n_components=n_comp, algorithm='arpack')
+    svd_titles.fit_transform(all_titles)
+
+    tr_titles_svd = pd.DataFrame(svd_titles.transform(train_titles))
+    tr_titles_svd.columns = ['titles_svd_' + str(i + 1) for i in range(n_comp)]
+    X_train_df[tr_titles_svd.columns] = tr_titles_svd
+
+    va_titles_svd = pd.DataFrame(svd_titles.transform(val_titles))
+    va_titles_svd.columns = ['titles_svd_' + str(i + 1) for i in range(n_comp)]
+    X_val_df[va_titles_svd.columns] = va_titles_svd
+
+    te_titles_svd = pd.DataFrame(svd_titles.transform(test_titles))
+    te_titles_svd.columns = ['titles_svd_' + str(i + 1) for i in range(n_comp)]
+    test[te_titles_svd.columns] = te_titles_svd
+
+    ###
+
+    svd_desc = TruncatedSVD(n_components=n_comp, algorithm='arpack')
+    svd_desc.fit_transform(all_desc)
+
+    tr_desc_svd = pd.DataFrame(svd_desc.transform(train_desc))
+    tr_desc_svd.columns = ['desc_svd_' + str(i + 1) for i in range(n_comp)]
+    X_train_df[tr_desc_svd.columns] = tr_desc_svd
+
+    va_desc_svd = pd.DataFrame(svd_desc.transform(val_desc))
+    va_desc_svd.columns = ['desc_svd_' + str(i + 1) for i in range(n_comp)]
+    X_val_df[va_desc_svd.columns] = va_desc_svd
+
+    te_desc_svd = pd.DataFrame(svd_desc.transform(test_desc))
+    te_desc_svd.columns = ['desc_svd_' + str(i + 1) for i in range(n_comp)]
+    test[te_desc_svd.columns] = te_desc_svd
+
+    ###
+
+    svd_params = TruncatedSVD(n_components=n_comp, algorithm='arpack')
+    svd_params.fit_transform(all_params)
+
+    tr_params_svd = pd.DataFrame(svd_params.transform(train_params))
+    tr_params_svd.columns = ['params_svd_' + str(i + 1) for i in range(n_comp)]
+    X_train_df[tr_params_svd.columns] = tr_params_svd
+
+    va_params_svd = pd.DataFrame(svd_params.transform(val_params))
+    va_params_svd.columns = ['params_svd_' + str(i + 1) for i in range(n_comp)]
+    X_val_df[va_params_svd.columns] = va_params_svd
+
+    te_params_svd = pd.DataFrame(svd_params.transform(test_params))
+    te_params_svd.columns = ['params_svd_' + str(i + 1) for i in range(n_comp)]
+    test[te_params_svd.columns] = te_params_svd
+
+    ###############################################################################
 
     columns_to_drop = ['title', 'description', 'params', 'image',
                        'activation_date', 'deal_probability', 'user_id']
@@ -229,6 +319,13 @@ if args.feature == "new":
         utils.save_features(y_train, xgb_root, "y_train")
         utils.save_features(y_val, xgb_root, "y_val")
 
+    del df, X_train_df, X_val_df, train_titles, val_titles, test_titles,
+    train_desc, val_desc, test_desc, train_params, val_params, test_params,
+    all_titles, all_desc, all_params, svd_titles, svd_desc, svd_params,
+    tr_titles_svd, va_titles_svd, te_titles_svd, tr_desc_svd, va_desc_svd, te_desc_svd,
+    tr_params_svd, va_params_svd, te_params_svd
+    gc.collect()
+
 elif args.feature == "load":
     print("[+] Load features ")
     X_train = utils.load_features(xgb_root, "X_train").any()
@@ -245,9 +342,6 @@ elif args.feature == "load":
     print(y_train)
     print(y_val)
 
-
-print("Test size {}".format(test.shape[0]))
-# assert len_sub != test.shape[0]
 
 # Leave most parameters as default
 params = {
@@ -279,8 +373,6 @@ watchlist = [(xg_train, 'train'), (xg_val, 'val')]
 num_round = 10000
 bst = xgb.train(params, xg_train, num_round, evals=watchlist, early_stopping_rounds=200, evals_result=gpu_res, verbose_eval=50)
 pred = bst.predict(xg_test)
-# print(len(pred))
-# sub = pd.read_csv(config["sample_submission"],  nrows=nrows)
 sub['deal_probability'] = pred
 sub['deal_probability'].clip(0.0, 1.0, inplace=True)
-sub.to_csv('submission_xgboost.csv', index=False)
+sub.to_csv('submission_xgboost_norm.csv', index=False)
