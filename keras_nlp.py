@@ -56,6 +56,18 @@ cat_columns = [
     "user_type", "image_top_1"
 ]
 
+cat_embedding_size = [
+    3,
+    5,
+    7,
+    9,
+    7,
+    5,
+    3,
+    5,
+    7,
+]
+
 text_columns = [
     "description",
     "title"
@@ -87,10 +99,13 @@ def get_model(args):
     out_num = Dropout(0.5)(out_num)
 
     out_cat = []
-    for x, tkl in zip(input_cat, token_len):
-        x = Embedding(tkl + 1, config["embedding_size"], embeddings_initializer="glorot_normal")(x)
+    for x, tkl, embed_size in zip(input_cat, token_len, cat_embedding_size):
+        x = Embedding(tkl + 1, embed_size, embeddings_initializer="glorot_normal")(x)
         x = SpatialDropout1D(0.25)(x)
-        x = Flatten()(x)
+        x1 = GlobalAveragePooling1D()(x)
+        x2 = GlobalMaxPooling1D()(x)
+        x = Concatenate()([x1, x2])
+        # x = Flatten()(x)
         out_cat.append(x)
 
     out_text = []
@@ -137,7 +152,7 @@ def get_model(args):
     merg_out_text = Dense(128, activation="relu", kernel_initializer="glorot_normal")(merg_out_text)
     merg_out_text = Dropout(0.5)(merg_out_text)
 
-    merge_out = concatenate([out_num, *out_cat, merg_out_text, x_words])
+    merge_out = concatenate([out_num, input_num, *out_cat, merg_out_text, x_words])
     merge_out = BatchNormalization()(merge_out)
     merge_out = Dense(50, activation="relu", kernel_initializer="glorot_normal")(merge_out)
     merge_out = BatchNormalization()(merge_out)
