@@ -256,7 +256,7 @@ params = {
     'eval_metric': "rmse",
     # 'tree_method': 'gpu_hist',
     'gpu_id': 0,
-    'max_depth': 21,
+    'max_depth': 25,
     'eta': 0.05,
     'min_child_weight': 11,
     'gamma': 0,
