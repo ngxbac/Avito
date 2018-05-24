@@ -8,7 +8,7 @@ import gc
 import utils
 from keras.preprocessing import text, sequence
 import re
-from gensim.models import KeyedVectors
+from gensim.models import KeyedVectors, Word2Vec
 
 
 def load_csv(csv_path, columns):
@@ -19,9 +19,9 @@ def load_csv(csv_path, columns):
 def preprocessing(df, columns):
     for cols in columns:
         df[cols] = df[cols].astype(str)
-        df[cols] = df[cols].fillna('NA')  # FILL NA
+        df[cols] = df[cols].fillna('')  # FILL NA
         df[cols] = df[cols].str.lower()
-        df[cols] = df[cols].str.replace("[^[:alpha:]]", " ")
+        # df[cols] = df[cols].str.replace("[^[:alpha:]]", " ")
         df[cols] = df[cols].str.replace("\\s+", " ")
 
     return df
@@ -80,7 +80,7 @@ def main():
     print("\n[+] Load pretrained embedding")
     # Use pretrained-weights for embedding
     EMBEDDING_FILE = config["fasttext_vec"]
-    model = KeyedVectors.load_word2vec_format(EMBEDDING_FILE, binary=False)
+    model = Word2Vec.load(EMBEDDING_FILE)
     print("[+] Load is done")
     print("[+] Create pretrained embedding")
     word_index = tokenizer.word_index

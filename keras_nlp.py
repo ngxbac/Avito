@@ -78,7 +78,7 @@ model_name = None
 train_nlp = 1
 
 def rmse(y_true, y_pred):
-    return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
+    return K.sqrt(K.mean(K.square(y_pred - y_true)))
 
 
 def get_model(args):
@@ -169,7 +169,7 @@ def get_model(args):
         model = Model(inputs=[input_num, *input_cat, *input_text, input_words], outputs=merge_out)
     else:
         model = Model(inputs=[input_num, *input_cat, *input_text], outputs=merge_out)
-    model.compile(optimizer=optimizers.Adam(lr=config["lr"]), loss="mean_squared_error")
+    model.compile(optimizer=optimizers.Adam(lr=config["lr"]), loss="mean_squared_error", metrics=[rmse])
 
     plot_model(model, to_file='model.png')
     return model
