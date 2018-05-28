@@ -154,7 +154,7 @@ if args.feature == "new":
     for i in names:
         df.loc[df[i].value_counts()[df[i]].values < 100, i] = "Rare_value"
     df.loc[df["image_top_1"].value_counts()[df["image_top_1"]].values < 200, "image_top_1"] = -1
-
+    df.loc[df["item_seq_number"].value_counts()[df["item_seq_number"]].values < 150, "item_seq_number"] = -1
 
     cat_cols = ['user_id', 'region', 'city', 'category_name', "parent_category_name",
             'param_1', 'param_2', 'param_3', 'user_type',
