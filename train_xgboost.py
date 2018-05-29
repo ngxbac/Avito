@@ -139,8 +139,8 @@ if args.feature == "new":
     textfeats = ['description', "title"]
     for col in textfeats:
         df[col + '_num_words'] = df[col].apply(lambda s: len(s.split()))
-        df[col + '_num_capE'] = df[col].str.count("[A-Z]")
-        df[col + '_num_capR'] = df[col].str.count("[А-Я]")
+        df[col + '_num_unique_words'] = df[col].apply(lambda s: len(set(w for w in s.split())))
+        df[col + '_words_vs_unique'] = df[col + '_num_unique_words'] / df[col + '_num_words'] * 100
         df[col + '_num_lowE'] = df[col].str.count("[a-z]")
         df[col + '_num_lowR'] = df[col].str.count("[а-я]")
         df[col + '_num_pun'] = df[col].str.count("[[:punct:]]")
@@ -148,7 +148,12 @@ if args.feature == "new":
 
     df['param_2'] = df['param_1'] + ' ' + df['param_2']
     df['param_3'] = df['param_2'] + ' ' + df['param_3']
-    df['params'] = df['param_3']
+    # df['params'] = df['param_3']
+
+    ###############################################################################
+    df['params'] = df['param_3'] + ' ' + df['title_norm']
+    df['text'] = df['description_norm'] + ' ' + df['title_norm']
+    ###############################################################################
 
     names = ["city", "param_1", "user_id"]
     for i in names:
@@ -227,36 +232,36 @@ if args.feature == "new":
 
     titles_tfidf = TfidfVectorizer(
         stop_words=russian_stop,
-        max_features=10000,
+        max_features=20000,
         norm='l2',
         sublinear_tf=True,
         smooth_idf=False,
         dtype=np.float32,
     )
 
-    tr_titles = titles_tfidf.fit_transform(X_train.title_norm)
-    te_titles = titles_tfidf.transform(X_test.title_norm)
+    tr_titles = titles_tfidf.fit_transform(X_train.text)
+    te_titles = titles_tfidf.transform(X_test.text)
 
     desc_tfidf = TfidfVectorizer(
         stop_words=russian_stop,
-        max_features=10000,
+        max_features=15000,
         norm='l2',
         sublinear_tf=True,
         smooth_idf=False,
         dtype=np.float32,
     )
 
-    tr_desc = desc_tfidf.fit_transform(X_train.description_norm)
-    te_desc = desc_tfidf.transform(X_test.description_norm)
+    tr_desc = desc_tfidf.fit_transform(X_train.params)
+    te_desc = desc_tfidf.transform(X_test.params)
 
-    params_cv = CountVectorizer(
-        stop_words=russian_stop,
-        max_features=5000,
-        dtype=np.float32,
-    )
-
-    tr_params = params_cv.fit_transform(X_train.params)
-    te_params = params_cv.transform(X_test.params)
+    # params_cv = CountVectorizer(
+    #     stop_words=russian_stop,
+    #     max_features=5000,
+    #     dtype=np.float32,
+    # )
+    #
+    # tr_params = params_cv.fit_transform(X_train.params)
+    # te_params = params_cv.transform(X_test.params)
 
     from sklearn.metrics import mean_squared_error
     from math import sqrt
@@ -271,7 +276,7 @@ if args.feature == "new":
     ridge = SklearnWrapper(clf=Ridge, seed=SEED, params=ridge_params)
     ridge_oof_train_desc, ridge_oof_test_desc = get_oof(ridge, tr_desc, y, te_desc)
     ridge_oof_train_title, ridge_oof_test_title = get_oof(ridge, tr_titles, y, te_titles)
-    ridge_oof_train_params, ridge_oof_test_params = get_oof(ridge, tr_params, y, te_params)
+    # ridge_oof_train_params, ridge_oof_test_params = get_oof(ridge, tr_params, y, te_params)
 
     rms = sqrt(mean_squared_error(y, ridge_oof_train_desc))
     print('Ridge OOF RMSE: {}'.format(rms))
@@ -284,10 +289,10 @@ if args.feature == "new":
     X_train['ridge_preds_title'] = ridge_oof_train_title
     X_test['ridge_preds_title'] = ridge_oof_test_title
 
-    X_train['ridge_preds_params'] = ridge_oof_train_params
-    X_test['ridge_preds_params'] = ridge_oof_test_params
+    # X_train['ridge_preds_params'] = ridge_oof_train_params
+    # X_test['ridge_preds_params'] = ridge_oof_test_params
 
-    del ridge_oof_train_desc, ridge_oof_test_desc, ridge_oof_train_title, ridge_oof_test_title, ridge_oof_train_params, ridge_oof_test_params
+    del ridge_oof_train_title, ridge_oof_test_title, ridge_oof_train_desc, ridge_oof_test_desc
 
     gc.collect()
 
@@ -297,33 +302,33 @@ if args.feature == "new":
     fStats.transform(X_val)
     fStats.transform(X_test)
 
-    tr_titles = titles_tfidf.fit_transform(X_train.title_norm)
-    va_titles = titles_tfidf.transform(X_val.title_norm)
-    te_titles = titles_tfidf.transform(X_test.title_norm)
+    tr_titles = titles_tfidf.fit_transform(X_train.text)
+    va_titles = titles_tfidf.transform(X_val.text)
+    te_titles = titles_tfidf.transform(X_test.text)
 
-    tr_desc = desc_tfidf.fit_transform(X_train.description_norm)
-    va_desc = desc_tfidf.transform(X_val.description_norm)
-    te_desc = desc_tfidf.transform(X_test.description_norm)
+    tr_desc = desc_tfidf.fit_transform(X_train.params)
+    va_desc = desc_tfidf.transform(X_val.params)
+    te_desc = desc_tfidf.transform(X_test.params)
 
-    tr_params = params_cv.fit_transform(X_train.params)
-    va_params = params_cv.transform(X_val.params)
-    te_params = params_cv.transform(X_test.params)
+    # tr_params = params_cv.fit_transform(X_train.params)
+    # va_params = params_cv.transform(X_val.params)
+    # te_params = params_cv.transform(X_test.params)
 
     columns_to_drop = ['title', 'description', 'params', 'image',
-                       'activation_date', 'deal_probability', 'title_norm', 'description_norm']
+                   'activation_date', 'deal_probability', 'title_norm', 'description_norm', 'text']
 
-    X_tr = hstack([csr_matrix(X_train.drop(columns_to_drop, axis=1)), tr_titles, tr_desc, tr_params])
+    X_tr = hstack([csr_matrix(X_train.drop(columns_to_drop, axis=1)), tr_titles, tr_desc])
     y_tr = X_train['deal_probability']
-    del tr_titles, tr_desc, tr_params, X_train
+    del tr_titles, tr_desc, X_train
 
     gc.collect()
-    X_va = hstack([csr_matrix(X_val.drop(columns_to_drop, axis=1)), va_titles, va_desc, va_params])
+    X_va = hstack([csr_matrix(X_val.drop(columns_to_drop, axis=1)), va_titles, va_desc])
     y_va = X_val['deal_probability']
-    del va_titles, va_desc, va_params, X_val
+    del va_titles, va_desc, X_val
     gc.collect()
-    X_te = hstack([csr_matrix(X_test.drop(columns_to_drop, axis=1)), te_titles, te_desc, te_params])
+    X_te = hstack([csr_matrix(X_test.drop(columns_to_drop, axis=1)), te_titles, te_desc])
 
-    del te_titles, te_desc, te_params, X_test
+    del te_titles, te_desc, X_test
 
     gc.collect()
 
