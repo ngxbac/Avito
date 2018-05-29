@@ -9,40 +9,34 @@ root = "model_bag"
 model_bag = [
     {
         "name": "xgboost",
-        "path": f"{root}/submission_xgboost.csv",
-        "score": 0.2241,
+        "path": f"{root}/XGB_0216192_local.csv",
+        "score": 0.2208,
         "weight": 0.3,
     },
     {
         "name": "LightGBM",
-        "path": f"{root}/submissionA5_LB02224.csv",
-        "score": 0.2239,
+        "path": f"{root}/LGBM_02209_no_ridge.csv",
+        "score": 0.2207,
         "weight": 0.3,
     },
     {
         "name": "xgboost_R",
-        "path": f"{root}/xgb_tfidf0.21864_02241LB.csv",
-        "score": 0.2226,
+        "path": f"{root}/xgb_tfidf0.218395.csv",
+        "score": 0.2234,
         "weight": 0.1,
     },
-    # {
-    #     "name": "keras_cnn",
-    #     "path": f"{root}/keras_cnn_avg.csv",
-    #     "score": 0.2232,
-    #     "weight": 0.20,
-    # },
     {
         "name": "keras_capsule",
-        "path": f"{root}/keras_capsule_avg.csv",
-        "score": 0.2228,
+        "path": f"{root}/keras_capsule_02215_self_training.csv",
+        "score": 0.2215,
         "weight": 0.3,
     },
     # {
-    #     "name": "revert_label",
-    #     "path": f"{root}/revert_label.csv",
-    #     "score": 0.2232,
-    #     "weight": 0.10,
-    # }
+    #     "name": "keras_capsule_2",
+    #     "path": f"{root}/keras_capsule_02218_fasttext.csv",
+    #     "score": 0.2218,
+    #     "weight": 0.225,
+    # },
 ]
 
 preds = []
@@ -60,4 +54,4 @@ pred_mean = np.sum(preds, axis=0)
 df = pd.DataFrame()
 df['item_id'] = label['item_id']
 df['deal_probability'] = pred_mean
-df.to_csv(f'{root}/blend_3_best_models_with_xgb_weighted.csv',index=False)
+df.to_csv(f'{root}/blend_L09NR_X08_N15_R34_play.csv',index=False)
