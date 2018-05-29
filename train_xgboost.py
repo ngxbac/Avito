@@ -263,36 +263,36 @@ if args.feature == "new":
     # tr_params = params_cv.fit_transform(X_train.params)
     # te_params = params_cv.transform(X_test.params)
 
-    from sklearn.metrics import mean_squared_error
-    from math import sqrt
-
-    kf = KFold(NFOLDS, shuffle=True, random_state=SEED)
-
-    ridge_params = {'alpha': 2.0, 'fit_intercept': True, 'normalize': False, 'copy_X': True,
-                    'max_iter': None, 'tol': 0.001, 'solver': 'auto', 'random_state': SEED}
-
-    # Ridge oof method from Faron's kernel
-
-    ridge = SklearnWrapper(clf=Ridge, seed=SEED, params=ridge_params)
-    ridge_oof_train_desc, ridge_oof_test_desc = get_oof(ridge, tr_desc, y, te_desc)
-    ridge_oof_train_title, ridge_oof_test_title = get_oof(ridge, tr_titles, y, te_titles)
-    # ridge_oof_train_params, ridge_oof_test_params = get_oof(ridge, tr_params, y, te_params)
-
-    rms = sqrt(mean_squared_error(y, ridge_oof_train_desc))
-    print('Ridge OOF RMSE: {}'.format(rms))
-
-    print("Modeling Stage")
-
-    X_train['ridge_oof_desc'] = ridge_oof_train_desc
-    X_test['ridge_oof_desc'] = ridge_oof_test_desc
-
-    X_train['ridge_preds_title'] = ridge_oof_train_title
-    X_test['ridge_preds_title'] = ridge_oof_test_title
-
-    # X_train['ridge_preds_params'] = ridge_oof_train_params
-    # X_test['ridge_preds_params'] = ridge_oof_test_params
-
-    del ridge_oof_train_title, ridge_oof_test_title, ridge_oof_train_desc, ridge_oof_test_desc
+    # from sklearn.metrics import mean_squared_error
+    # from math import sqrt
+    #
+    # kf = KFold(NFOLDS, shuffle=True, random_state=SEED)
+    #
+    # ridge_params = {'alpha': 2.0, 'fit_intercept': True, 'normalize': False, 'copy_X': True,
+    #                 'max_iter': None, 'tol': 0.001, 'solver': 'auto', 'random_state': SEED}
+    #
+    # # Ridge oof method from Faron's kernel
+    #
+    # ridge = SklearnWrapper(clf=Ridge, seed=SEED, params=ridge_params)
+    # ridge_oof_train_desc, ridge_oof_test_desc = get_oof(ridge, tr_desc, y, te_desc)
+    # ridge_oof_train_title, ridge_oof_test_title = get_oof(ridge, tr_titles, y, te_titles)
+    # # ridge_oof_train_params, ridge_oof_test_params = get_oof(ridge, tr_params, y, te_params)
+    #
+    # rms = sqrt(mean_squared_error(y, ridge_oof_train_desc))
+    # print('Ridge OOF RMSE: {}'.format(rms))
+    #
+    # print("Modeling Stage")
+    #
+    # X_train['ridge_oof_desc'] = ridge_oof_train_desc
+    # X_test['ridge_oof_desc'] = ridge_oof_test_desc
+    #
+    # X_train['ridge_preds_title'] = ridge_oof_train_title
+    # X_test['ridge_preds_title'] = ridge_oof_test_title
+    #
+    # # X_train['ridge_preds_params'] = ridge_oof_train_params
+    # # X_test['ridge_preds_params'] = ridge_oof_test_params
+    #
+    # del ridge_oof_train_title, ridge_oof_test_title, ridge_oof_train_desc, ridge_oof_test_desc
 
     gc.collect()
 
