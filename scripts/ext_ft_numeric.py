@@ -129,5 +129,6 @@ X_test = csr_matrix(X_test)
 # Save matrix
 utils.save_bcolz(X_train, "features", "X_train_num")
 utils.save_bcolz(X_test, "features", "X_test_num")
+utils.save_bcolz(y, "features", "X_train_y")
 
 print("[+] Extract numeric features done !")
