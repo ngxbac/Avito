@@ -8,10 +8,10 @@ import utils
 from sklearn.preprocessing import LabelEncoder
 
 # root path
-root = "/Users/ngxbac/project/kaggle/avito/"
+root = "/home/deeplearning/Kaggle/avito/input/"
 
 # For degbug logic
-nrows = 1000
+nrows = None
 
 # Load csv files
 train_df = pd.read_csv(root+"train.csv",

@@ -7,19 +7,12 @@ warnings.filterwarnings('ignore')
 import keras as K
 from keras.layers import *
 from keras.models import *
-import json
 import utils
 
-import keras
 from keras.callbacks import *
-from keras_utils import AttentionWithContext
-from keras.regularizers import l2
-import gc
-from sklearn.model_selection import StratifiedKFold, KFold
+from sklearn.model_selection import KFold
 import argparse
 import pandas as pd
-import keras_model as kmodel
-import tensorflow as tf
 
 from keras.callbacks import CSVLogger
 
@@ -58,12 +51,13 @@ features, fnames = utils.load_features()
 
 # Flat the features
 y              = features[0]
-X_num          = features[1]
+X_num          = features[1][0]
 X_cat          = features[2]
-X_tfidf_text   = features[3]
-X_tfidf_params = features[4]
-X_ridge_text   = features[5]
-X_ridge_params = features[6]
+X_tfidf_text   = features[3][0]
+X_tfidf_params = features[4][0]
+# X_ridge_text   = features[5]
+# X_ridge_params = features[6]
+
 
 # RMSE function
 def rmse(y_true, y_pred):
@@ -72,28 +66,29 @@ def rmse(y_true, y_pred):
 def get_model():
     input_num           = Input(shape=(X_num.shape[1],          ), name="Numeric")
     input_cat           = Input(shape=(X_cat.shape[1],          ), name="Category")
-    input_tfidf_text    = Input(shape=(X_tfidf_text.shape[1],   ), name="TFIDF text")
-    input_tfidf_params  = Input(shape=(X_tfidf_params.shape[1], ), name="TFIDF param")
-    input_ridge_text    = Input(shape=(X_ridge_text.shape[1],   ), name="Ridge text")
-    input_ridge_params  = Input(shape=(X_ridge_params.shape[1], ), name="Ridge param")
+    input_tfidf_text    = Input(shape=(X_tfidf_text.shape[1],   ), name="TFIDF_text")
+    input_tfidf_params  = Input(shape=(X_tfidf_params.shape[1], ), name="TFIDF_param")
+    # input_ridge_text    = Input(shape=(1,                       ), name="Ridge_text")
+    # input_ridge_params  = Input(shape=(1,                       ), name="Ridge_param")
 
-    merge_input = concatenate()([input_num, input_cat,
+    merge_input = concatenate([input_num, input_cat,
                                  input_tfidf_text, input_tfidf_params,
-                                 input_ridge_text, input_ridge_params])
+                                 #input_ridge_text, input_ridge_params
+                            ])
 
     x = BatchNormalization()(merge_input)
-    x = Dense(128, activation="relu")(x)
+    x = Dense(128, activation="relu", kernel_initializer="glorot_normal")(x)
     x = BatchNormalization()(x)
     x = Dropout(0.25)(x)
-    x = Dense(1, activation="sigmoid")(x)
+    x = Dense(1, activation="sigmoid", kernel_initializer="glorot_normal")(x)
 
     input_list = [
         input_num, input_cat,
         input_tfidf_text, input_tfidf_params,
-        input_ridge_text, input_ridge_params
+        # input_ridge_text, input_ridge_params
     ]
     model = Model(inputs=input_list, outputs=x)
-    model.compile(optimizer=optimizers.Adam(lr=args.lr, loss="mean_squared_error", metrics=[rmse]))
+    model.compile(optimizer=optimizers.Adam(lr=args.lr), loss="mean_squared_error", metrics=[rmse])
     return model
 
 
@@ -139,28 +134,28 @@ def train():
             X_tr_cat            = X_cat[train_index]
             X_tr_tfidf_text     = X_tfidf_text[train_index]
             X_tr_tfidf_params   = X_tfidf_params[train_index]
-            X_tr_ridge_text     = X_ridge_text[train_index]
-            X_tr_ridge_params   = X_ridge_params[train_index]
+            # X_tr_ridge_text     = X_ridge_text[train_index]
+            # X_tr_ridge_params   = X_ridge_params[train_index]
             y_tr                = y[train_index]
 
             X_va_num            = X_num[val_index]
             X_va_cat            = X_cat[val_index]
             X_va_tfidf_text     = X_tfidf_text[val_index]
             X_va_tfidf_params   = X_tfidf_params[val_index]
-            X_va_ridge_text     = X_ridge_text[val_index]
-            X_va_ridge_params   = X_ridge_params[val_index]
+            # X_va_ridge_text     = X_ridge_text[val_index]
+            # X_va_ridge_params   = X_ridge_params[val_index]
             y_va                = y[val_index]
 
             train_inputs = [
                 X_tr_num, X_tr_cat,
                 X_tr_tfidf_text, X_tr_tfidf_params,
-                X_tr_ridge_text, X_tr_ridge_params
+                # X_tr_ridge_text, X_tr_ridge_params
             ]
 
             val_inputs = [
                 X_va_num, X_va_cat,
                 X_va_tfidf_text, X_va_tfidf_params,
-                X_va_ridge_text, X_va_ridge_params
+                # X_va_ridge_text, X_va_ridge_params
             ]
 
             history = model.fit(train_inputs, y_tr,
@@ -171,13 +166,13 @@ def train():
         model = get_model()
         # model.summary()
 
-        csv_logger = CSVLogger(f'{checkpoint_path}/log_{model_name}_one.csv', append=True, separator=',')
+        csv_logger = CSVLogger(f'{checkpoint_path}/log_{args.model_name}_one.csv', append=True, separator=',')
         callbacks_list = [checkpoint, early, lr_reduced, csv_logger]
 
         train_inputs = [
             X_num, X_cat,
             X_tfidf_text, X_tfidf_params,
-            X_ridge_text, X_ridge_params
+            # X_ridge_text, X_ridge_params
         ]
 
         history = model.fit(train_inputs, y, validation_split=0.1,
@@ -195,7 +190,7 @@ def test():
     test_inputs = [
         X_num, X_cat,
         X_tfidf_text, X_tfidf_params,
-        X_ridge_text, X_ridge_params
+        # X_ridge_text, X_ridge_params
     ]
 
     if n_folds:

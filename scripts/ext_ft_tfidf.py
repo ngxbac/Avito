@@ -13,7 +13,7 @@ from nltk.corpus import stopwords
 import utils
 
 # root path
-root = "/Users/ngxbac/project/kaggle/avito/"
+root = "/home/deeplearning/Kaggle/avito/input/"
 
 NFOLDS = 5
 SEED = 42
@@ -51,7 +51,7 @@ def get_oof(clf, x_train, y, x_test):
     return oof_train.reshape(-1, 1), oof_test.reshape(-1, 1)
 
 # For degbug logic
-nrows = 1000
+nrows = None
 
 # Load csv files
 train_df = pd.read_csv(root+"train.csv",
