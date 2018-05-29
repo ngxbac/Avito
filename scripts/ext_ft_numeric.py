@@ -4,11 +4,12 @@ warnings.filterwarnings('ignore')
 import numpy as np
 import pandas as pd
 import gc
-from scripts.ft_statistic import FeaturesStatistics
-from scipy.sparse import hstack, csr_matrix, vstack
+from ft_statistic import FeaturesStatistics
+from scipy.sparse import csr_matrix
+import utils
 
 # root path
-root = "/home/deeplearning/Kaggle/Avito/input/"
+root = "/Users/ngxbac/project/kaggle/avito/"
 
 # For degbug logic
 nrows = 1000
@@ -20,10 +21,10 @@ train_df = pd.read_csv(root+"train.csv",
 test_df = pd.read_csv(root+"test.csv",
                       parse_dates=["activation_date"],
                       index_col="item_id", nrows=nrows)
-train_norm_df = pd.read_csv(root + "train_norm_csv",
+train_norm_df = pd.read_csv(root + "train_norm.csv",
                             index_col="item_id",
                             parse_dates=["activation_date"], nrows=nrows)
-test_norm_df = pd.read_csv(root + "test_norm_csv",
+test_norm_df = pd.read_csv(root + "test_norm.csv",
                            index_col="item_id",
                            parse_dates=["activation_date"], nrows=nrows)
 user_df = pd.read_csv(root+'aggregated_features.csv', nrows=nrows)
@@ -76,6 +77,9 @@ for col in textfeats1:
     df[col] = df[col].astype(str).fillna(' ')
     df[col] = df[col].str.lower()
 
+df.loc[df["image_top_1"].value_counts()[df["image_top_1"]].values < 200, "image_top_1"] = -1
+df.loc[df["item_seq_number"].value_counts()[df["item_seq_number"]].values < 150, "item_seq_number"] = -1
+
 textfeats = ['description', "title"]
 for col in textfeats:
     df[col + '_num_words'] = df[col].apply(lambda s: len(s.split()))
@@ -123,7 +127,7 @@ X_train = csr_matrix(X_train)
 X_test = csr_matrix(X_test)
 
 # Save matrix
-np.save("./features/X_train_num.npy", X_train)
-np.save("./features/X_test_num.npy", X_test)
+utils.save_bcolz(X_train, "features", "X_train_num")
+utils.save_bcolz(X_test, "features", "X_test_num")
 
-print("[+] Extract numeric feature is done !")
+print("[+] Extract numeric features done !")
