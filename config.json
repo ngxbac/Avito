@@ -1,6 +1,8 @@
 {
   "train_csv": "/home/deeplearning/Kaggle/avito/input/train.csv",
   "test_csv": "/home/deeplearning/Kaggle/avito/input/test.csv",
+  "train_norm_csv": "/home/deeplearning/Kaggle/avito/input/train_norm.csv",
+  "test_norm_csv": "/home/deeplearning/Kaggle/avito/input/test_norm.csv",
   "sample_submission": "/home/deeplearning/Kaggle/avito/input/sample_submission.csv",
   "fasttext_vec": "/home/deeplearning/Kaggle/avito/input/Self-training-embeding_300/avito.w2v",
   "extracted_features": "extracted_features",
