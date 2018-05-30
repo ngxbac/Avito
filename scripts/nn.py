@@ -66,6 +66,22 @@ for cat in range(X_cat.shape[1]):
     tmp = X_cat[:, cat]
     cat_token_len.append(len(np.unique(tmp)))
 
+# Define the list that unused
+unused_num = [
+    "description_num_lowE",
+    "description_num_lowR",
+    "description_num_pun",
+    "description_num_dig"
+]
+
+X_num = utils.unused_numeric(X_num, unused_num)
+
+unused_cat = [
+    "weekday",
+    "ads_count"
+]
+
+X_cat = utils.unused_category(X_cat, unused_cat)
 
 # RMSE function
 def rmse(y_true, y_pred):
