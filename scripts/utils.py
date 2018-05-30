@@ -28,12 +28,18 @@ def load_features(train=True):
         prefix = "test"
 
     ato_prefix = [
-        "y", "num", "cat",
+        "num", "cat",
         "tfidf_text", "tfidf_params",
-        "ridge_text", "ridge_params"
+        "ridge_text", "ridge_params",
+        "word"
     ]
+
+    embedding_weights = load_bcolz(root, "embedding_weights")
+    y = load_bcolz(root, "X_train_y")
 
     fname = [f"X_{prefix}_{x}" for x in ato_prefix]
     features = [load_bcolz(root, name) for name in fname]
+    features.append(embedding_weights)
+    features = [y] + features
 
     return features, fname

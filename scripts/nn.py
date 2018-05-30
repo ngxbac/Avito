@@ -13,6 +13,7 @@ from keras.callbacks import *
 from sklearn.model_selection import KFold
 import argparse
 import pandas as pd
+import keras_model as kmodel
 
 from keras.callbacks import CSVLogger
 
@@ -25,7 +26,7 @@ def add_args(parser):
     arg('--batch_size', type=int, default=1024)
     arg('--epochs', type=int, default=100)
     arg('--lr', type=float, default=5e-3)
-    arg('--kfold', type=int, default=0)
+    arg('--kfold', type=int, default=10)
     # arg('--workers', type=int, default=12)
     # arg('--device-ids', type=str, help='For example 0,1 to run on two GPUs')
     arg('--model_name', type=str, default="avito_model")
@@ -57,6 +58,13 @@ X_tfidf_text   = features[3][0]
 X_tfidf_params = features[4][0]
 # X_ridge_text   = features[5]
 # X_ridge_params = features[6]
+X_word         = features[7]
+embedding_weights = features[8]
+
+cat_token_len = []
+for cat in range(X_cat.shape[1]):
+    tmp = X_cat[:, cat]
+    cat_token_len.append(len(np.unique(tmp)))
 
 
 # RMSE function
@@ -70,24 +78,49 @@ def get_model():
     input_tfidf_params  = Input(shape=(X_tfidf_params.shape[1], ), name="TFIDF_param")
     # input_ridge_text    = Input(shape=(1,                       ), name="Ridge_text")
     # input_ridge_params  = Input(shape=(1,                       ), name="Ridge_param")
+    input_words         = Input((100,                           ), name="word")
 
-    merge_input = concatenate([input_num, input_cat,
-                                 input_tfidf_text, input_tfidf_params,
-                                 #input_ridge_text, input_ridge_params
-                            ])
+    x_num = BatchNormalization()(input_num)
+    x_num = Dense(32, activation="relu")(x_num)
+    x_num = Dropout(0.25)(x_num)
 
-    x = BatchNormalization()(merge_input)
-    x = Dense(128, activation="relu", kernel_initializer="glorot_normal")(x)
+    cat_embeds = []
+    for idx in range(X_cat.shape[1]):
+        x_cat = Lambda(lambda x: x[:, idx, None])(input_cat)
+        x_cat = Embedding(cat_token_len[idx] + 1, 8, input_length=1)(x_cat)
+        # x_cat = SpatialDropout1D(0.25)(x_cat)
+        x_cat = Flatten()(x_cat)
+        cat_embeds.append(x_cat)
+
+    embeds = concatenate(cat_embeds)
+    embeds = GaussianDropout(0.2)(embeds)
+
+    x_tfidf_text = BatchNormalization()(input_tfidf_text)
+    x_tfidf_text = Dropout(0.25)(x_tfidf_text)
+    x_tfidf_text = Dense(X_tfidf_text.shape[1] // 100, activation="relu")(x_tfidf_text)
+    x_tfidf_text = Dropout(0.25)(x_tfidf_text)
+
+    x_tfidf_param = BatchNormalization()(input_tfidf_params)
+    x_tfidf_param = Dropout(0.25)(x_tfidf_param)
+    x_tfidf_param = Dense(X_tfidf_params.shape[1] // 100, activation="relu")(x_tfidf_param)
+    x_tfidf_param = Dropout(0.25)(x_tfidf_param)
+
+    x_words = kmodel.CapsuleNet(input_words, 50000, 300, embedding_weights)
+
+    x = concatenate([x_num, embeds, x_tfidf_text, x_tfidf_param, x_words])
     x = BatchNormalization()(x)
-    x = Dropout(0.25)(x)
+    x = Dense(50, activation="relu", kernel_initializer="glorot_normal")(x)
+    x = BatchNormalization()(x)
     x = Dense(1, activation="sigmoid", kernel_initializer="glorot_normal")(x)
+    outp = Dense(1, activation='sigmoid')(x)
 
     input_list = [
         input_num, input_cat,
         input_tfidf_text, input_tfidf_params,
-        # input_ridge_text, input_ridge_params
+        # input_ridge_text, input_ridge_params,
+        input_words
     ]
-    model = Model(inputs=input_list, outputs=x)
+    model = Model(inputs=input_list, outputs=outp)
     model.compile(optimizer=optimizers.Adam(lr=args.lr), loss="mean_squared_error", metrics=[rmse])
     return model
 
@@ -136,6 +169,7 @@ def train():
             X_tr_tfidf_params   = X_tfidf_params[train_index]
             # X_tr_ridge_text     = X_ridge_text[train_index]
             # X_tr_ridge_params   = X_ridge_params[train_index]
+            X_tr_word              = X_word[train_index]
             y_tr                = y[train_index]
 
             X_va_num            = X_num[val_index]
@@ -144,18 +178,21 @@ def train():
             X_va_tfidf_params   = X_tfidf_params[val_index]
             # X_va_ridge_text     = X_ridge_text[val_index]
             # X_va_ridge_params   = X_ridge_params[val_index]
+            X_va_word           = X_word[val_index]
             y_va                = y[val_index]
 
             train_inputs = [
                 X_tr_num, X_tr_cat,
                 X_tr_tfidf_text, X_tr_tfidf_params,
-                # X_tr_ridge_text, X_tr_ridge_params
+                # X_tr_ridge_text, X_tr_ridge_params,
+                X_tr_word
             ]
 
             val_inputs = [
                 X_va_num, X_va_cat,
                 X_va_tfidf_text, X_va_tfidf_params,
-                # X_va_ridge_text, X_va_ridge_params
+                # X_va_ridge_text, X_va_ridge_params,
+                X_va_word
             ]
 
             history = model.fit(train_inputs, y_tr,
@@ -172,7 +209,8 @@ def train():
         train_inputs = [
             X_num, X_cat,
             X_tfidf_text, X_tfidf_params,
-            # X_ridge_text, X_ridge_params
+            # X_ridge_text, X_ridge_params,
+            X_word
         ]
 
         history = model.fit(train_inputs, y, validation_split=0.1,
