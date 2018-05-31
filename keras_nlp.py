@@ -26,21 +26,41 @@ from keras.callbacks import CSVLogger
 from keras.utils import plot_model
 config = json.load(open("config.json"))
 
+# Parse the argument
+def add_args(parser):
+    arg = parser.add_argument
+    arg('--mode', type=str, default='train', help='train or test')
+    arg('--architecture', type=str, default='capsule', help='capsule, cnn or another')
+    arg('--text', type=str, default='default', help='use default, norm or stem text')
+    arg('--embed', type=str, default='selftrain_300', help='use selftrain or fasttext')
+
+parser = argparse.ArgumentParser()
+arg = parser.add_argument
+
+add_args(parser)
+args = parser.parse_args()
+
+text = args.text
+embed = args.embed
+
 # Load json config
 config = json.load(open("config.json"))
-extracted_features_root = config["extracted_features"]
+features = config["features"]
+features_word = f"{features}/{text}_{embed}"
+features_num = f"{features}/{text}"
+
 # Load data and token len of embedding layers
 print("[+] Load features ...")
-y = utils.load_features(extracted_features_root, "y_train")
-token_len = utils.load_features(extracted_features_root, "token_len")
+y = utils.load_features(features_num, "y_train")
+token_len = utils.load_features(features_num, "token_len")
 
-X_num = utils.load_features(extracted_features_root, "X_train_num")
-X_cat = utils.load_features(extracted_features_root, "X_train_cat")
-X_desc = utils.load_features(extracted_features_root, "X_train_desc").any()
-X_title = utils.load_features(extracted_features_root, "X_train_title").any()
+X_num = utils.load_features(features_num, "X_train_num")
+X_cat = utils.load_features(features_num, "X_train_cat")
+X_desc = utils.load_features(features_num, "X_train_desc").any()
+X_title = utils.load_features(features_num, "X_train_title").any()
 
-embedding_weights = utils.load_bcolz(extracted_features_root, "embedding_weights")
-X_word = utils.load_bcolz(extracted_features_root, "X_train_word")
+embedding_weights = utils.load_bcolz(features_word, "embedding_weights")
+X_word = utils.load_bcolz(features_word, "X_train_word")
 
 X_text = [X_desc, X_title]
 
@@ -171,10 +191,10 @@ def train(args):
     if not os.path.exists(checkpoint_path):
         os.mkdir(checkpoint_path)
 
-    file_path = f"{checkpoint_path}/keras_best.h5"
+    file_path = f"{checkpoint_path}/{model_name}_best.h5"
     checkpoint = ModelCheckpoint(file_path, monitor='val_loss', verbose=2, save_best_only=True, save_weights_only=True,
                                  mode='min')
-    early = EarlyStopping(monitor="val_loss", mode="min", patience=3, min_delta=1e-4)
+    early = EarlyStopping(monitor="val_loss", mode="min", patience=3)
     lr_reduced = ReduceLROnPlateau(monitor='val_loss',
                                    factor=0.1,
                                    patience=2,
@@ -197,7 +217,7 @@ def train(args):
 
             print(f"\n[+] Fold {fold}")
 
-            file_path = f"{checkpoint_path}/keras_{model_name}_best_{fold}.h5"
+            file_path = f"{checkpoint_path}/{model_name}_best_{fold}.h5"
             checkpoint = ModelCheckpoint(file_path, monitor='val_loss', verbose=2, save_best_only=True,
                                          save_weights_only=True,
                                          mode='min')
@@ -263,14 +283,14 @@ def train(args):
 
         print("[+] Predict training set ...")
         model.load_weights(file_path)
-        preds_train = model.predict([X_num, *list_train_cat, *X_text, X_word])
-        utils.save_features(preds_train, extracted_features_root, f"{model_name}_train_pred")
+        preds_train = model.predict([X_num, *list_train_cat, *X_text, X_word], batch_size=config["batch_size"])
+        utils.save_features(preds_train, checkpoint_path, f"{model_name}_train_pred")
 
 
 def test(args):
     predict_root = config["predict_root"]
     checkpoint_path = f"checkpoint/{model_name}/"
-    file_path = f"{checkpoint_path}/keras_best.h5"
+    file_path = f"{checkpoint_path}/{model_name}_best.h5"
     list_cat = [X_cat[:, i] for i in range(X_cat.shape[1])]
 
     n_folds = config["n_fold"]
@@ -283,52 +303,43 @@ def test(args):
         for fold in range(n_folds):
             model = get_model(args)
             print(f"\n[+] Test Fold {fold}")
-            file_path = f"{checkpoint_path}/keras_{model_name}_best_{fold}.h5"
+            file_path = f"{checkpoint_path}/{model_name}_best_{fold}.h5"
             model.load_weights(file_path)
-            pred = model.predict(test_params, batch_size=512)
+            pred = model.predict(test_params, batch_size=1024)
             submission = pd.read_csv(config["sample_submission"])
             submission['deal_probability'] = pred
-            utils.save_csv(submission, predict_root, f"keras_{model_name}_{fold}.csv")
+            utils.save_csv(submission, checkpoint_path, f"{model_name}_preds_{fold}.csv")
             preds_all.append(pred)
         preds_all = np.array(preds_all)
         preds_avg = np.mean(preds_all, axis=0)
         submission = pd.read_csv(config["sample_submission"])
         submission['deal_probability'] = preds_avg
         # submission.to_csv(f"submission_{model_name}_avg.csv", index=False)
-        utils.save_csv(submission, predict_root, f"keras_{model_name}_avg.csv")
+        utils.save_csv(submission, checkpoint_path, f"{model_name}_preds_test_avg.csv")
     else:
         model = get_model(args)
         model.summary()
         model.load_weights(file_path)
-        pred = model.predict([X_num, *list_cat, *X_text, X_word], batch_size=512)
+        pred = model.predict([X_num, *list_cat, *X_text, X_word], batch_size=1024)
         submission = pd.read_csv(config["sample_submission"])
         submission['deal_probability'] = pred
-        utils.save_csv(submission, predict_root, f"keras_{model_name}_one.csv")
+        utils.save_csv(submission, checkpoint_path, f"{model_name}_preds_test.csv")
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices=['train', 'test'])
-    parser.add_argument('architecture', choices = [
-        "bilstm_amp", "bilstm_ap", "bilstm_mp",
-        "bilstm_mpatn", "bigru", "rnnv2", "capsule",
-        "cnn"
-    ])
-
-    args = parser.parse_args()
-
+    print("\n **************************************** ")
     print(f"[+] Start {args.mode}")
 
-    model_name = args.architecture
+    model_name = f"{args.architecture}_{text}_{embed}"
     print(f"[+] Model {model_name}")
 
     if args.mode == "test":
-        X_num = utils.load_features(extracted_features_root, "X_test_num")
-        X_cat = utils.load_features(extracted_features_root, "X_test_cat")
-        X_desc = utils.load_features(extracted_features_root, "X_test_desc").any()
-        X_title = utils.load_features(extracted_features_root, "X_test_title").any()
+        X_num = utils.load_features(features_num, "X_test_num")
+        X_cat = utils.load_features(features_num, "X_test_cat")
+        X_desc = utils.load_features(features_num, "X_test_desc").any()
+        X_title = utils.load_features(features_num, "X_test_title").any()
         X_text = [X_desc, X_title]
-        X_word = utils.load_bcolz(extracted_features_root, "X_test_word")
+        X_word = utils.load_bcolz(features_word, "X_test_word")
 
     if args.mode == "train":
         train(args)

@@ -10,8 +10,45 @@ from sklearn.decomposition import TruncatedSVD
 from nltk.corpus import stopwords
 import utils
 import gc
+import argparse
 stopWords_rus = stopwords.words('russian')
 
+nrows = 1000
+# Parse the argument
+def add_args(parser):
+    arg = parser.add_argument
+    # arg('--embed', type=str, default='selftrain', help='use selftrain or fasttext')
+    arg('--text', type=str, default='default', help='use default, norm or stem text')
+
+parser = argparse.ArgumentParser()
+arg = parser.add_argument
+
+add_args(parser)
+args = parser.parse_args()
+
+# Load json config
+config = json.load(open("config.json"))
+
+root = config["root"]
+
+if args.text == "default":
+    train_csv = "train.csv"
+    test_csv = "test.csv"
+    desc_name = "description"
+    title_name = "title"
+elif args.text == "norm":
+    train_csv = "train_norm.csv"
+    test_csv = "test_norm.csv"
+    desc_name = "description_norm"
+    title_name = "title_norm"
+elif args.text == "stem":
+    train_csv = "train_stem.csv"
+    test_csv = "test_stem.csv"
+    desc_name = "description_stem"
+    title_name = "title_stem"
+
+train_csv = f"{root}/{train_csv}"
+test_csv = f"{root}/{test_csv}"
 
 tfidf_para = {
     "stop_words": stopWords_rus,
@@ -55,13 +92,13 @@ agg_columns = [
 
 num_columns = ["item_seq_number"]
 
-text_cols = ["description", "text_feat", "title"]
+text_cols = [desc_name, "text_feat", title_name]
 
 config = json.load(open("config.json"))
 
 
 def load_csv(csv_path):
-    df = pd.read_csv(csv_path, parse_dates=["activation_date"])
+    df = pd.read_csv(csv_path, parse_dates=["activation_date"], nrows=nrows)
     df = df.replace(np.nan, -1, regex=True)
     return df
 
@@ -132,8 +169,8 @@ def agg_features(train_df, test_df, columns=agg_columns):
 
 def title_features(df, n_comp=3):
     tfidf_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=10000)
-    tfidf_vec.fit(df['title'].values.tolist())
-    tfidf = tfidf_vec.transform(df['title'].values.tolist())
+    tfidf_vec.fit(df[title_name].values.tolist())
+    tfidf = tfidf_vec.transform(df[title_name].values.tolist())
 
 
     svd_obj = TruncatedSVD(n_components=n_comp, algorithm='arpack')
@@ -153,8 +190,8 @@ def title_features(df, n_comp=3):
 
 def description_features(df, n_comp=3):
     tfidf_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=10000)
-    tfidf_vec.fit(df['description'].values.tolist())
-    tfidf = tfidf_vec.transform(df['description'].values.tolist())
+    tfidf_vec.fit(df[desc_name].values.tolist())
+    tfidf = tfidf_vec.transform(df[desc_name].values.tolist())
 
     svd_obj = TruncatedSVD(n_components=n_comp, algorithm='arpack')
     svd_obj.fit(tfidf)
@@ -195,13 +232,11 @@ def extract_text_features_as_numeric(df, columns=text_cols):
 
 
 def main():
-    # Load json config
-    config = json.load(open("config.json"))
 
     with utils.timer("Load csv"):
         print("[+] Load csv ...")
-        train_df = load_csv(config["train_csv"])
-        test_df = load_csv(config["test_csv"])
+        train_df = load_csv(train_csv)
+        test_df = load_csv(test_csv)
 
     with utils.timer("Create token"):
         print("[+] Create token ...")
@@ -286,7 +321,8 @@ def main():
     # Save token len
     token_len = [len(t) for t in token]
     
-    extracted_features_root = config["extracted_features"]
+    extracted_features_root = config["features"]
+    extracted_features_root = f"{extracted_features_root}/{args.text}"
     utils.save_features(X_train_num, root=extracted_features_root,
                        name="X_train_num")
 
