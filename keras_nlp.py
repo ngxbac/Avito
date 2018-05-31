@@ -75,8 +75,6 @@ text_columns = [
 
 model_name = None
 
-train_nlp = 1
-
 def rmse(y_true, y_pred):
     return K.sqrt(K.mean(K.square(y_pred - y_true)))
 
@@ -92,8 +90,7 @@ def get_model(args):
     for text, name in zip(X_text, text_columns):
         input_text.append(Input(shape=(text.shape[1],), name="text_" + name))
 
-    if train_nlp:
-        input_words = Input((config["word_input_size"],), name="word")
+    input_words = Input((config["word_input_size"],), name="word")
 
     out_num = BatchNormalization()(input_num)
     out_num = Dense(50, activation="relu", kernel_initializer="glorot_normal")(out_num)
@@ -120,55 +117,48 @@ def get_model(args):
         out_text.append(x)
 
 
-    if train_nlp:
-        if args.architecture == "bilstm_amp":
-            x_words = kmodel.BidLstmAmp(input_words, config["word_max_dict"], config["word_embedding_size"], embedding_weights)
-        elif args.architecture == "bilstm_ap":
-            x_words = kmodel.BidLstmAmp(input_words, config["word_max_dict"], config["word_embedding_size"],
-                                        embedding_weights)
-        elif args.architecture == "bilstm_mp":
-            x_words = kmodel.BidLstmMp(input_words, config["word_max_dict"], config["word_embedding_size"],
-                                        embedding_weights)
-        elif args.architecture == "bilstm_mpatn":
-            x_words = kmodel.BidLstmMpAtn(input_words, config["word_input_size"], config["word_max_dict"],
-                                          config["word_embedding_size"],
-                                          embedding_weights)
-        elif args.architecture == "bigru":
-            x_words = kmodel.BidGRU(input_words, config["word_input_size"], config["word_max_dict"],
-                                          config["word_embedding_size"],
-                                          embedding_weights)
-        elif args.architecture == "rnnv2":
-            x_words = kmodel.RNNV2(input_words, config["word_max_dict"],
-                                          config["word_embedding_size"],
-                                          embedding_weights)
-        elif args.architecture == "capsule":
-            x_words = kmodel.CapsuleNet(input_words, config["word_max_dict"],
-                                          config["word_embedding_size"],
-                                          embedding_weights)
-        elif args.architecture == "cnn":
-            x_words = kmodel.CNN(input_words, config["word_max_dict"],
-                                          config["word_embedding_size"],
-                                          embedding_weights)
+    if args.architecture == "bilstm_amp":
+        x_words = kmodel.BidLstmAmp(input_words, config["word_max_dict"], config["word_embedding_size"], embedding_weights)
+    elif args.architecture == "bilstm_ap":
+        x_words = kmodel.BidLstmAmp(input_words, config["word_max_dict"], config["word_embedding_size"],
+                                    embedding_weights)
+    elif args.architecture == "bilstm_mp":
+        x_words = kmodel.BidLstmMp(input_words, config["word_max_dict"], config["word_embedding_size"],
+                                    embedding_weights)
+    elif args.architecture == "bilstm_mpatn":
+        x_words = kmodel.BidLstmMpAtn(input_words, config["word_input_size"], config["word_max_dict"],
+                                      config["word_embedding_size"],
+                                      embedding_weights)
+    elif args.architecture == "bigru":
+        x_words = kmodel.BidGRU(input_words, config["word_input_size"], config["word_max_dict"],
+                                      config["word_embedding_size"],
+                                      embedding_weights)
+    elif args.architecture == "rnnv2":
+        x_words = kmodel.RNNV2(input_words, config["word_max_dict"],
+                                      config["word_embedding_size"],
+                                      embedding_weights)
+    elif args.architecture == "capsule":
+        x_words = kmodel.CapsuleNet(input_words, config["word_max_dict"],
+                                      config["word_embedding_size"],
+                                      embedding_weights)
+    elif args.architecture == "cnn":
+        x_words = kmodel.CNN(input_words, config["word_max_dict"],
+                                      config["word_embedding_size"],
+                                      embedding_weights)
 
     merg_out_text = concatenate(out_text)
     merg_out_text = BatchNormalization()(merg_out_text)
     merg_out_text = Dense(128, activation="relu", kernel_initializer="glorot_normal")(merg_out_text)
     merg_out_text = Dropout(0.5)(merg_out_text)
 
-    if train_nlp:
-        merge_out = concatenate([out_num, input_num, *out_cat, merg_out_text, x_words])
-    else:
-        merge_out = concatenate([out_num, input_num, *out_cat, merg_out_text])
+    merge_out = concatenate([out_num, input_num, *out_cat, merg_out_text, x_words])
 
     merge_out = BatchNormalization()(merge_out)
     merge_out = Dense(50, activation="relu", kernel_initializer="glorot_normal")(merge_out)
     merge_out = BatchNormalization()(merge_out)
     merge_out = Dense(1, activation="sigmoid", kernel_initializer="glorot_normal")(merge_out)
 
-    if train_nlp:
-        model = Model(inputs=[input_num, *input_cat, *input_text, input_words], outputs=merge_out)
-    else:
-        model = Model(inputs=[input_num, *input_cat, *input_text], outputs=merge_out)
+    model = Model(inputs=[input_num, *input_cat, *input_text, input_words], outputs=merge_out)
     model.compile(optimizer=optimizers.Adam(lr=config["lr"]), loss="mean_squared_error", metrics=[rmse])
 
     plot_model(model, to_file='model.png')
@@ -226,34 +216,55 @@ def train(args):
             X_val_fold_word = X_word[val_index]
             y_val_fold = y[val_index]
 
-            if train_nlp:
-                print("[+] Train with NLP")
-                train_params = [X_tr_fold_num, *X_tr_fold_cat, *X_tr_fold_text, X_tr_fold_word]
-                val_params = [X_val_fold_num, *X_val_fold_cat, *X_val_fold_text, X_val_fold_word]
-            else:
-                print("[+] Train without NLP")
-                train_params = [X_tr_fold_num, *X_tr_fold_cat, *X_tr_fold_text]
-                val_params = [X_val_fold_num, *X_val_fold_cat, *X_val_fold_text]
+            train_list = [X_tr_fold_num, *X_tr_fold_cat, *X_tr_fold_text, X_tr_fold_word]
+            val_list = [X_val_fold_num, *X_val_fold_cat, *X_val_fold_text, X_val_fold_word]
 
-            history = model.fit(train_params, y_tr_fold,
-                                validation_data=(val_params, y_val_fold),
+            history = model.fit(train_list, y_tr_fold,
+                                validation_data=(val_list, y_val_fold),
                                 verbose=1, callbacks=callbacks_list,
                                 epochs=config["epoch"], batch_size=config["batch_size"])
     else:
         model = get_model(args)
-        model.summary()
+        # model.summary()
+
+        # Load train and validation index
+        train_index = np.load("train_index_2018.npy")
+        val_index = np.load("val_index_2018.npy")
 
         csv_logger = CSVLogger(f'{checkpoint_path}/log_{model_name}_one.csv', append=True, separator=',')
         callbacks_list = [checkpoint, early, lr_reduced, csv_logger]
 
-        if train_nlp:
-            train_params = [X_num, *list_train_cat, *X_text, X_word]
-        else:
-            train_params = [X_num, *list_train_cat, *X_text]
+        print("[+] Split training and validation set...")
 
-        history = model.fit(train_params, y, validation_split=0.1,
+        X_tr_num = X_num[train_index]
+        X_tr_cat = [cat[train_index] for cat in list_train_cat]
+        X_tr_text = [text[train_index] for text in X_text]
+        X_tr_word = X_word[train_index]
+        y_tr = y[train_index]
+
+        X_val_num = X_num[val_index]
+        X_val_cat = [cat[val_index] for cat in list_train_cat]
+        X_val_text = [text[val_index] for text in X_text]
+        X_val_word = X_word[val_index]
+        y_val = y[val_index]
+
+        train_list = [
+            X_tr_num, *X_tr_cat, *X_tr_text, X_tr_word
+        ]
+
+        val_list = [
+            X_val_num, *X_val_cat, *X_val_text, X_val_word
+        ]
+
+        history = model.fit(train_list, y_tr,
+                            validation_data=(val_list, y_val),
                             verbose=1, callbacks=callbacks_list,
                             epochs=config["epoch"], batch_size=config["batch_size"])
+
+        print("[+] Predict training set ...")
+        model.load_weights(file_path)
+        preds_train = model.predict([X_num, *list_train_cat, *X_text, X_word])
+        utils.save_features(preds_train, extracted_features_root, f"{model_name}_train_pred")
 
 
 def test(args):
@@ -264,10 +275,7 @@ def test(args):
 
     n_folds = config["n_fold"]
 
-    if train_nlp:
-        test_params = [X_num, *list_cat, *X_text, X_word]
-    else:
-        test_params = [X_num, *list_cat, *X_text]
+    test_params = [X_num, *list_cat, *X_text, X_word]
 
     if n_folds:
         # Test with k-fold
@@ -306,9 +314,6 @@ if __name__ == '__main__':
         "bilstm_mpatn", "bigru", "rnnv2", "capsule",
         "cnn"
     ])
-    parser.add_argument('train_nlp', choices = [
-        "0", "1"
-    ])
 
     args = parser.parse_args()
 
@@ -317,9 +322,6 @@ if __name__ == '__main__':
     model_name = args.architecture
     print(f"[+] Model {model_name}")
 
-    train_nlp = int(args.train_nlp)
-    print(f"[+] Train nlp {train_nlp}")
-
     if args.mode == "test":
         X_num = utils.load_features(extracted_features_root, "X_test_num")
         X_cat = utils.load_features(extracted_features_root, "X_test_cat")
@@ -327,10 +329,6 @@ if __name__ == '__main__':
         X_title = utils.load_features(extracted_features_root, "X_test_title").any()
         X_text = [X_desc, X_title]
         X_word = utils.load_bcolz(extracted_features_root, "X_test_word")
-
-    # model = get_model()
-    # model.summary()
-    # plot_model(model, to_file='model.png')
 
     if args.mode == "train":
         train(args)
