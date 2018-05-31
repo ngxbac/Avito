@@ -18,6 +18,6 @@
   "n_workers": 4,
   "model_name": "keras_50k_d300_100w",
   "patience": 5,
-  "n_fold": 10,
+  "n_fold": 0,
   "resume": ""
 }

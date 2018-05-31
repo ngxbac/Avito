@@ -15,7 +15,7 @@ from keras.callbacks import *
 from keras_utils import AttentionWithContext
 from keras.regularizers import l2
 import gc
-from sklearn.model_selection import StratifiedKFold, KFold
+from sklearn.model_selection import StratifiedKFold, KFold, train_test_split
 import argparse
 import pandas as pd
 import keras_model as kmodel
@@ -184,10 +184,10 @@ def train(args):
     file_path = f"{checkpoint_path}/keras_best.h5"
     checkpoint = ModelCheckpoint(file_path, monitor='val_loss', verbose=2, save_best_only=True, save_weights_only=True,
                                  mode='min')
-    early = EarlyStopping(monitor="val_loss", mode="min", patience=5, min_delta=1e-4)
+    early = EarlyStopping(monitor="val_loss", mode="min", patience=3, min_delta=1e-4)
     lr_reduced = ReduceLROnPlateau(monitor='val_loss',
                                    factor=0.1,
-                                   patience=3,
+                                   patience=2,
                                    verbose=1,
                                    epsilon=1e-4,
                                    min_lr=1e-5,
@@ -199,7 +199,7 @@ def train(args):
 
     if n_folds:
         # Train with k-fold
-        skf = KFold(n_folds)
+        skf = KFold(n_folds, shuffle=True, random_state=2018)
         for fold, (train_index, val_index) in enumerate(skf.split(X_num)):
 
             model = get_model(args)
@@ -289,7 +289,7 @@ def test(args):
         # submission.to_csv(f"submission_{model_name}_avg.csv", index=False)
         utils.save_csv(submission, predict_root, f"keras_{model_name}_avg.csv")
     else:
-        model = get_model()
+        model = get_model(args)
         model.summary()
         model.load_weights(file_path)
         pred = model.predict([X_num, *list_cat, *X_text, X_word], batch_size=512)
