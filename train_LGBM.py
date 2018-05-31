@@ -1,126 +1,141 @@
-import json
-import pandas as pd
-import bcolz
-import numpy as np
+# Light GBM for Avito Demand Prediction Challenge
+# Uses Bag-of-Words, meta-text features, and dense features.
+# NO COMPUTER VISION COMPONENT.
+
+# https://www.kaggle.com/c/avito-demand-prediction
+# By Nick Brooks, April 2018
+
+import time
+
+notebookstart = time.time()
+
+import numpy as np  # linear algebra
+import pandas as pd  # data processing, CSV file I/O (e.g. pd.read_csv)
 import os
+import gc
+import json
 
-import lightgbm as lgb
+# print("Data:\n", os.listdir("../input"))
 
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import TensorDataset, DataLoader
+# Models Packages
+from sklearn import metrics
+from sklearn.metrics import mean_squared_error
+from sklearn import feature_selection
 from sklearn.model_selection import train_test_split
+from sklearn import preprocessing
 from sklearn.model_selection import StratifiedKFold, KFold
 
-import models
-import datasets as d
+# Gradient Boosting
+import lightgbm as lgb
+
+# Tf-Idf
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.pipeline import FeatureUnion
+from scipy.sparse import hstack, csr_matrix
+from nltk.corpus import stopwords
+
+# Viz
+import seaborn as sns
+import matplotlib.pyplot as plt
+
 import utils
-import json
 
-from scipy.sparse import hstack
+skip_fold = [0, 1, 2, 3, 4, 5]
 
-def load_preds_train_fold(model_name, fold):
-    file = f"pred_train_{model_name}_{fold}"
-    return utils.load_features("predict_train", file)
+config = json.load(open("config.json"))
+lgb_root = "lbg_root"
 
+X = utils.load_bcolz(lgb_root, "lgb_X")[0].tocsr()
+y = utils.load_bcolz(lgb_root, "lgb_y")
+tfvocab = utils.load_bcolz(lgb_root, "lgb_tfvocab")
+testing = utils.load_bcolz(lgb_root, "lgb_testing")[0]
+categorical = utils.load_bcolz(lgb_root, "lgb_categorical")
+testdex = utils.load_bcolz(lgb_root, "lgb_testdex")
 
-def load_preds_test_fold(model_name, fold):
-    file = f"predict_root/submission_{model_name}_{fold}.csv"
-    preds = pd.read_csv(file)["deal_probability"].tolist()
-    return np.array(preds).reshape(-1, 1)
+print("\nModeling Stage")
 
-def main():
-    # Load json config
-    config = json.load(open("config.json"))
-    extracted_features_root = config["extracted_features"]
-    # Load data and token len of embedding layers
-    print("[+] Load features ...")
-    y = utils.load_features(extracted_features_root, "y_train")
-    token_len = utils.load_features(extracted_features_root, "token_len")
+# Training and Validation Set
+"""
+Using Randomized train/valid split doesn't seem to generalize LB score, so I will try time cutoff
+"""
 
-    X_train_num = utils.load_features(extracted_features_root, "X_train_num")
-    X_train_cat = utils.load_features(extracted_features_root, "X_train_cat")
-    X_train_desc = utils.load_features(extracted_features_root, "X_train_desc").any()
-    X_train_title = utils.load_features(extracted_features_root, "X_train_title").any()
-    X_train_param = utils.load_features(extracted_features_root, "X_train_param").any()
+# Train with k-fold
+n_folds = config["n_fold"]
+skf = KFold(n_folds)
 
-    X_test_num = utils.load_features(extracted_features_root, "X_test_num")
-    X_test_cat = utils.load_features(extracted_features_root, "X_test_cat")
-    X_test_desc = utils.load_features(extracted_features_root, "X_test_desc").any()
-    X_test_title = utils.load_features(extracted_features_root, "X_test_title").any()
-    X_test_param = utils.load_features(extracted_features_root, "X_test_param").any()
+for fold, (train_index, val_index) in enumerate(skf.split(X)):
+    print(f"\n[+] Fold {fold}")
+    if fold in skip_fold:
+        print(f"[+] Fold {fold} is skipped")
+        continue
 
-    # Load predict train
-    n_folds = config["n_fold"]
-    model_name = config["model_name"]
-    X_pred_train = None
-    X_pred_test = None
-    for fold in range(n_folds):
-        preds_train = load_preds_train_fold(model_name, fold)
-        preds_test = load_preds_test_fold(model_name, fold)
-        if X_pred_train is None:
-            X_pred_train = preds_train
-            X_pred_test = preds_test
-        else:
-            X_pred_train = np.concatenate((X_pred_train, preds_train), axis=1)
-            X_pred_test = np.concatenate((X_pred_test, preds_test), axis=1)
-    print("Predict train shape {}".format(X_pred_train.shape))
-    print("Predict test shape {}".format(X_pred_test.shape))
+    X_train = X[train_index]
+    y_train = y[train_index]
 
+    X_valid = X[val_index]
+    y_valid = y[val_index]
 
-    # X = np.concatenate((X_train_num, X_train_cat, X_train_desc, X_train_title), axis=1)
-    # X = np.concatenate((X_train_num, X_train_cat, X_pred_train), axis=1)
-    X = hstack([X_train_num, X_train_cat, X_train_desc, X_train_title])
-    X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.1)
+    # Save val index and test index to file
+    utils.save_features(np.asarray(train_index), lgb_root, f"train_index_fold_{fold}")
+    utils.save_features(np.asarray(val_index), lgb_root, f"val_index_fold_{fold}")
 
-    # test = np.concatenate((X_test_num, X_test_cat), axis=1)
-    # test = np.concatenate((X_test_num, X_test_cat, X_test_desc, X_test_title), axis=1)
-    test = hstack([X_test_num, X_test_cat, X_test_desc, X_test_title])
-
-    n_rounds = 200041
+    print("Light Gradient Boosting Regressor")
     lgbm_params = {
         'task': 'train',
         'boosting_type': 'gbdt',
         'objective': 'regression',
         'metric': 'rmse',
-        'max_depth': 13,
-        # 'num_leaves': 31,
-        'feature_fraction': 0.80,
-        # 'bagging_fraction': 0.90,
+        'max_depth': 15,
+        'num_leaves': 35,
+        'feature_fraction': 0.7,
+        'bagging_fraction': 0.8,
         # 'bagging_freq': 5,
-        'learning_rate': 0.05,
-        'lambda_l2': 5,
-        'verbose': 0,
-        "device": "gpu",
-        "max_bin": 128,
-        "num_threads": 4
+        'learning_rate': 0.019,
+        'verbose': 0
     }
 
-    lgtrain = lgb.Dataset(X_train, label=y_train)
-    lgvalid = lgb.Dataset(X_valid, label=y_valid)
-    # lgbtest = lgb.Dataset(test)
+    # LGBM Dataset Formatting
+    lgtrain = lgb.Dataset(X_train, y_train,
+                          feature_name=tfvocab,
+                          categorical_feature=categorical)
+    lgvalid = lgb.Dataset(X_valid, y_valid,
+                          feature_name=tfvocab,
+                          categorical_feature=categorical)
 
-
-    # Specify sufficient boosting iterations to reach a minimum
-    num_round = 4000
-    gpu_res = {}  # Store accuracy result
-    # Train model
+    # Go Go Go
+    modelstart = time.time()
     lgb_clf = lgb.train(
         lgbm_params,
         lgtrain,
-        num_boost_round=n_rounds,
+        num_boost_round=15000,
         valid_sets=[lgtrain, lgvalid],
         valid_names=['train', 'valid'],
         early_stopping_rounds=200,
-        verbose_eval=50
+        verbose_eval=200
     )
 
-    deal_probability = lgb_clf.predict(test)
-    submission = pd.read_csv(config["sample_submission"])
-    submission['deal_probability'] = deal_probability
-    submission['deal_probability'].clip(0.0, 1.0, inplace=True)
-    submission.to_csv(f"submission_lgbm_boost.csv", index=False)
+    print('Save model...')
+    # save model to file
+    lgb_clf.save_model(f'lgb_model_fold_{fold}.txt')
 
-if __name__ == '__main__':
-    main()
+    # Feature Importance Plot
+    f, ax = plt.subplots(figsize=[7, 10])
+    lgb.plot_importance(lgb_clf, max_num_features=50, ax=ax)
+    plt.title("Light GBM Feature Importance")
+    plt.savefig(f'feature_import_fold_{fold}.png')
+
+    print("Model Evaluation Stage")
+    lgb_oof_pred = lgb_clf.predict(X_valid)
+    print('RMSE:', np.sqrt(metrics.mean_squared_error(y_valid, lgb_oof_pred)))
+    lgpred = lgb_clf.predict(testing)
+    lgsub = pd.DataFrame(lgpred, columns=["deal_probability"], index=testdex)
+    lgsub['deal_probability'].clip(0.0, 1.0, inplace=True)  # Between 0 and 1
+    lgsub.to_csv(f"lgb_sub_fold_{fold}.csv", index=True, header=True)
+
+    # Save out of fold
+    lgb_oof = pd.DataFrame(lgb_oof_pred, columns=["deal_probability"], index=val_index)
+    lgb_oof['deal_probability'].clip(0.0, 1.0, inplace=True)  # Between 0 and 1
+    lgb_oof.to_csv(f"lgb_oof_fold_{fold}.csv", index=True, header=True)
+
+    print("Model Runtime: %0.2f Minutes" % ((time.time() - modelstart) / 60))
+    print("Notebook Runtime: %0.2f Minutes" % ((time.time() - notebookstart) / 60))

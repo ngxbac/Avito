@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 import os
 import numpy as np
+import bcolz
 
 
 @contextmanager
@@ -44,14 +45,14 @@ def train(epoch, loader: DataLoader, model: nn.Module, criterion: nn.Module, opt
     pbar = tqdm(enumerate(loader), total=len(loader))
     losses = AverageMeter()
 
-    for batch_id, (X_num, X_cat, X_text, label) in pbar:
+    for batch_id, (X_num, X_cat, X_text, X_word, label) in pbar:
         optimizer.zero_grad()
         batch_size = X_num.size(0)
 
         # data = to_gpu(data)
         label = to_gpu(label)
 
-        output = model(X_num, X_cat, X_text)
+        output = model(X_num, X_cat, X_text, X_word)
         loss = criterion(output, label)
         # measure accuracy and record loss
         losses.update(loss.item(), batch_size)
@@ -60,13 +61,17 @@ def train(epoch, loader: DataLoader, model: nn.Module, criterion: nn.Module, opt
         loss.backward()
         optimizer.step()
 
-        pbar.set_description("Epoch train {}, "
-                             "Loss {:.4f} ({:.4f}), ".format(
-            epoch, losses.val, losses.avg
+        pbar.set_description("[+] Epoch train {}, "
+                             "Loss {:.4f} ({:.4f}), "
+                             "RMSE {:.4f} ({:.4f})".format(
+                              epoch, losses.val, losses.avg,
+                              np.sqrt(losses.val), np.sqrt(losses.avg)
         ))
     print("[+] Epoch train {}, "
-          "Loss {:.4f}".format(
-        epoch, losses.avg
+                             "Loss {:.4f} ({:.4f}), "
+                             "RMSE {:.4f} ({:.4f})".format(
+                              epoch, losses.val, losses.avg,
+                              np.sqrt(losses.val), np.sqrt(losses.avg)
     ))
 
 
@@ -76,24 +81,27 @@ def test(epoch, test_loader, model, criterion):
     model.eval()
     with torch.no_grad():
         pbar = tqdm(enumerate(test_loader), total=len(test_loader))
-        for batch_idx, (X_num, X_cat, X_text, label) in pbar:
+        for batch_idx, (X_num, X_cat, X_text, X_word, label) in pbar:
             batch_size = X_num.size(0)
 
             label = to_gpu(label)
 
-            output = model(X_num, X_cat, X_text)
+            output = model(X_num, X_cat, X_text, X_word)
             loss = criterion(output, label)
             # measure accuracy and record loss
             losses.update(loss.item(), batch_size)
 
-            pbar.set_description("Epoch test {}, "
-                                 "Loss {:.4f} ({:.4f}), ".format(
-                epoch, losses.val, losses.avg
+            pbar.set_description("[+] Epoch test {}, "
+                                 "Loss {:.4f} ({:.4f}), "
+                                 "RMSE {:.4f} ({:.4f})".format(
+                epoch, losses.val, losses.avg,
+                np.sqrt(losses.val), np.sqrt(losses.avg)
             ))
-
         print("[+] Epoch test {}, "
-              "{:.4f} \n".format(
-            epoch, losses.avg
+              "Loss {:.4f} ({:.4f}), "
+              "RMSE {:.4f} ({:.4f})\n".format(
+            epoch, losses.val, losses.avg,
+            np.sqrt(losses.val), np.sqrt(losses.avg)
         ))
 
         return losses.avg
@@ -122,22 +130,43 @@ def load_checkpoint(checkpoint):
     else:
         print("=> no checkpoint found at '{}'".format(checkpoint))
         return None
-    
 
-def save_features(feature, root, name):
+
+def create_empty_bcolz(n, name):
+    return bcolz.carray(np.zeros((0, n), np.float32), chunklen=1, mode='w', rootdir=name)
+
+
+def read_bcolz_data(name):
+    return bcolz.open(name)
+
+
+def save_bcolz(feature, root, name):
     if not os.path.exists(root):
         os.mkdir(root)
-    np.save(f"{root}/{name}.npy", feature)
+    bcolz.carray(feature, chunklen=1024, mode='w', rootdir=f"{root}/{name}")
     
 
-def load_features(root, name):
+def load_bcolz(root, name):
     if not os.path.exists(root):
         print(f"[+] Feature {name} does not exists")
         return None
-    return np.load(f"{root}/{name}.npy")
+    return bcolz.open(f"{root}/{name}")
 
 
 def save_csv(df, root, name):
     if not os.path.exists(root):
         os.mkdir(root)
     df.to_csv(f"{root}/{name}", index=False)
+
+
+def save_features(feature, root, name):
+    if not os.path.exists(root):
+        os.mkdir(root)
+    np.save(f"{root}/{name}.npy", feature)
+
+
+def load_features(root, name):
+    if not os.path.exists(root):
+        print(f"[+] Feature {name} does not exists")
+        return None
+    return np.load(f"{root}/{name}.npy")
