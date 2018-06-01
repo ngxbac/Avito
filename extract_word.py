@@ -12,7 +12,7 @@ from gensim.models import KeyedVectors, Word2Vec
 import argparse
 
 
-nrows = 1000
+nrows = None
 # Parse the argument
 def add_args(parser):
     arg = parser.add_argument

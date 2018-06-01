@@ -16,7 +16,7 @@ import gc
 import argparse
 stopWords_rus = stopwords.words('russian')
 
-nrows = 1000
+nrows = None
 # Parse the argument
 def add_args(parser):
     arg = parser.add_argument
