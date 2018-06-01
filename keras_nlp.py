@@ -33,6 +33,7 @@ def add_args(parser):
     arg('--architecture', type=str, default='capsule', help='capsule, cnn or another')
     arg('--text', type=str, default='default', help='use default, norm or stem text')
     arg('--embed', type=str, default='selftrain_300', help='use selftrain or fasttext')
+    arg('--kfold', type=int, default=0, help='Number of k-fold')
 
 parser = argparse.ArgumentParser()
 arg = parser.add_argument
@@ -205,7 +206,7 @@ def train(args):
 
     list_train_cat = [X_cat[:, i] for i in range(X_cat.shape[1])]
 
-    n_folds = config["n_fold"]
+    n_folds = args.kfold
 
     if n_folds:
         # Train with k-fold
@@ -293,7 +294,7 @@ def test(args):
     file_path = f"{checkpoint_path}/{model_name}_best.h5"
     list_cat = [X_cat[:, i] for i in range(X_cat.shape[1])]
 
-    n_folds = config["n_fold"]
+    n_folds = args.kfold
 
     test_params = [X_num, *list_cat, *X_text, X_word]
 
