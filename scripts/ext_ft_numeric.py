@@ -52,21 +52,14 @@ gc.collect()
 # Tramnsform log
 eps = 0.001
 
-df['city'] = df['city'] + '_' + df['region']
-df["price"] = np.log(df["price"] + eps)
+df["price"] = np.log1p(df["price"] + eps)
 df["price"].fillna(df["price"].mean(), inplace=True)
-df["image_top_1"].fillna(df["image_top_1"].mean(), inplace=True)
-df['avg_days_up_user'].fillna(-1, inplace=True)
-df['avg_days_up_user'].fillna(-1, inplace=True)
-df['avg_times_up_user'].fillna(-1, inplace=True)
-df['n_user_items'].fillna(-1, inplace=True)
+df["item_seq_number"] = np.log(df["item_seq_number"])
 
-# df['city'] = df['city'] + '_' + df['region']
-df['no_img'] = pd.isna(df.image).astype(int)
-df['no_dsc'] = pd.isna(df.description).astype(int)
-df['no_p1'] = pd.isna(df.param_1).astype(int)
-df['no_p2'] = pd.isna(df.param_2).astype(int)
-df['no_p3'] = pd.isna(df.param_3).astype(int)
+df['avg_days_up_user'].fillna(df["avg_days_up_user"].mean(), inplace=True)
+df['avg_times_up_user'].fillna(df["avg_times_up_user"].mean(), inplace=True)
+df['n_user_items'].fillna(df["n_user_items"].mean(), inplace=True)
+
 df['weekday'] = df['activation_date'].dt.weekday
 df["item_seq_bin"] = df["item_seq_number"] // 100
 df["ads_count"] = df.groupby("user_id", as_index=False)["user_id"].transform(lambda s: s.count())
@@ -76,9 +69,6 @@ for col in textfeats1:
     df[col] = df[col].astype(str)
     df[col] = df[col].astype(str).fillna(' ')
     df[col] = df[col].str.lower()
-
-df.loc[df["image_top_1"].value_counts()[df["image_top_1"]].values < 200, "image_top_1"] = -1
-df.loc[df["item_seq_number"].value_counts()[df["item_seq_number"]].values < 150, "item_seq_number"] = -1
 
 textfeats = ['description', "title"]
 for col in textfeats:

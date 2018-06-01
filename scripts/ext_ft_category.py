@@ -35,22 +35,22 @@ df = pd.concat([train_df, test_df])
 del train_df, test_df
 gc.collect()
 
-df["ads_count"] = df.groupby("user_id", as_index=False)["user_id"].transform(lambda s: s.count())
+df['no_img'] = pd.isna(df.image).astype(int)
+df['no_dsc'] = pd.isna(df.description).astype(int)
+df['no_p1'] = pd.isna(df.param_1).astype(int)
+df['no_p2'] = pd.isna(df.param_2).astype(int)
+df['no_p3'] = pd.isna(df.param_3).astype(int)
+
 df['weekday'] = df['activation_date'].dt.weekday
 # Category columns
-cat_cols = ['user_id', 'region', 'city', 'category_name', "parent_category_name",
-            'param_1', 'param_2', 'param_3', 'user_type',
-            'weekday', 'ads_count']
+cat_cols = ["user_type", 'region', 'city', 'category_name', "parent_category_name",
+            'param_1', 'param_2', 'param_3', "no_p1", "no_p2", "no_p3",
+            'weekday', 'image_top_1', "no_img", "no_dsc"]
 
-fill_na = ['param_1', 'param_2', 'param_3']
-for col in fill_na:
+for col in cat_cols:
     df[col] = df[col].astype(str)
-    df[col] = df[col].astype(str).fillna(' ')
+    df[col] = df[col].astype(str).fillna('missing')
     df[col] = df[col].str.lower()
-
-names = ["city", "param_1", "user_id"]
-for i in names:
-    df.loc[df[i].value_counts()[df[i]].values < 100, i] = "Rare_value"
 
 # Encoder:
 for c in cat_cols:

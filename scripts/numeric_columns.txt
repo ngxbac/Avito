@@ -4,11 +4,6 @@ price
 avg_days_up_user
 avg_times_up_user
 n_user_items
-no_img
-no_dsc
-no_p1
-no_p2
-no_p3
 item_seq_bin
 description_num_words
 description_num_unique_words

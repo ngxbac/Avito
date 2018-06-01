@@ -1,4 +1,4 @@
-user_id
+user_type
 region
 city
 category_name
@@ -6,6 +6,10 @@ parent_category_name
 param_1
 param_2
 param_3
-user_type
+no_p1
+no_p2
+no_p3
 weekday
-ads_count
+image_top_1
+no_img
+no_dsc

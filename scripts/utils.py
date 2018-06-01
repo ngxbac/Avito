@@ -61,12 +61,36 @@ def unused_numeric(X_num, unsed_num):
             index_list.append(i)
 
     X_num_new = X_num[:, index_list]
+    keep_list = list(set(numeric_columns) - set(unsed_num))
+    return X_num_new, keep_list
+
+def use_numeric(X_num, use_num):
+    with open("numeric_columns.txt", "r") as f:
+        lines = f.readlines()
+        numeric_columns = [line.rstrip('\n') for line in lines]
+
+    index_list = []
+    for i, c in enumerate(numeric_columns):
+        if c in use_num:
+            index_list.append(i)
+
+    X_num_new = X_num[:, index_list]
+    return X_num_new
+
+def use_cat(X_cat, use_cat):
+    with open("category_columns.txt", "r") as f:
+        lines = f.readlines()
+        cat_columns = [line.rstrip('\n') for line in lines]
+
+    index_list = []
+    for i, c in enumerate(cat_columns):
+        if c in use_cat:
+            index_list.append(i)
+
+    X_num_new = X_cat[:, index_list]
     return X_num_new
 
 def unused_category(X_cat, unsed_num):
-    if unsed_num == []:
-        return X_cat
-
     with open("category_columns.txt", "r") as f:
         lines = f.readlines()
         cat_columns = [line.rstrip('\n') for line in lines]
@@ -77,4 +101,5 @@ def unused_category(X_cat, unsed_num):
             index_list.append(i)
 
     X_cat_new = X_cat[:, index_list]
+    keep_list = list(set(cat_columns) - set(unsed_num))
     return X_cat_new
