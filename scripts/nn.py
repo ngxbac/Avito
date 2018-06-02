@@ -30,7 +30,7 @@ def add_args(parser):
     arg('--kfold', type=int, default=10)
     # arg('--workers', type=int, default=12)
     # arg('--device-ids', type=str, help='For example 0,1 to run on two GPUs')
-    arg('--model_name', type=str, default="new_nn")
+    arg('--model_name', type=str, default="new_nn_2")
 
 parser = argparse.ArgumentParser()
 arg = parser.add_argument
@@ -132,6 +132,77 @@ use_cat_name_st = [
 
 X_cat_name_st = utils.use_numeric(X_num, use_cat_name_st)
 
+user_type_st = [
+    "user_type_dp_mean",
+    "user_type_dp_std",
+    "user_type_price_mean",
+    "user_type_price_std",
+    "user_type_to_price",
+]
+
+X_user_type_st = utils.use_numeric(X_num, user_type_st)
+
+img_top1_st = [
+    "image_top_1_dp_mean",
+    "image_top_1_dp_std",
+    "image_top_1_price_mean",
+    "image_top_1_price_std",
+    "image_top_1_to_price"
+]
+
+X_img_top1_st = utils.use_numeric(X_num, img_top1_st)
+
+p1_st = [
+    "param_1_dp_mean",
+    "param_1_dp_std",
+    "param_1_price_mean",
+    "param_1_price_std",
+    "param_1_to_price"
+]
+
+X_p1_st = utils.use_numeric(X_num, p1_st)
+
+
+p2_st = [
+    "param_2_dp_mean",
+    "param_2_dp_std",
+    "param_2_price_mean",
+    "param_2_price_std",
+    "param_2_to_price"
+]
+
+X_p2_st = utils.use_numeric(X_num, p2_st)
+
+
+p3_st = [
+    "param_3_dp_mean",
+    "param_3_dp_std",
+    "param_3_price_mean",
+    "param_3_price_std",
+    "param_3_to_price"
+]
+
+X_p3_st = utils.use_numeric(X_num, p3_st)
+
+ads_count_st = [
+    "ads_count_dp_mean",
+    "ads_count_dp_std",
+    "ads_count_price_mean",
+    "ads_count_price_std",
+    "ads_count_to_price",
+]
+
+X_ads_count_st = utils.use_numeric(X_num, ads_count_st)
+
+wd_st = [
+    "weekday_dp_mean",
+    "weekday_dp_std",
+    "weekday_price_mean",
+    "weekday_price_std",
+    "weekday_to_price"
+]
+
+X_wd_st = utils.use_numeric(X_num, wd_st)
 
 unused_cat = [
     # "weekday",
@@ -145,13 +216,7 @@ unused_cat = [
 X_cat = utils.unused_category(X_cat, unused_cat)
 # print("[+] Cat features \n{}".format(cat_keep_list))
 
-print(X_num_num.shape)
-print(X_region_st.shape)
-print(X_city_st.shape)
-print(X_parent_cat_st.shape)
-print(X_cat_name_st.shape)
-print(X_cat.shape)
-
+del X_num
 
 # RMSE function
 def rmse(y_true, y_pred):
@@ -163,35 +228,97 @@ def get_model():
     input_city_st       = Input(shape=(X_city_st.shape[1],), name="city_st")
     input_parent_cat_st = Input(shape=(X_parent_cat_st.shape[1],), name="parent_st")
     input_cat_name_st   = Input(shape=(X_cat_name_st.shape[1],), name="cat_name_st")
+    input_img_top1_st   = Input(shape=(X_img_top1_st.shape[1],), name="img_top1_st")
+    input_user_type_st  = Input(shape=(X_user_type_st.shape[1],), name="user_type_st")
+    input_p1_st         = Input(shape=(X_p1_st.shape[1],), name="p1_st")
+    input_p2_st         = Input(shape=(X_p2_st.shape[1],), name="p2_st")
+    input_p3_st         = Input(shape=(X_p3_st.shape[1],), name="p3_st")
+    input_ads_count_st  = Input(shape=(X_ads_count_st.shape[1],), name="ads_count_st")
+    input_wd_st         = Input(shape=(X_wd_st.shape[1],), name="wd_st")
     input_cat           = Input(shape=(X_cat.shape[1],), name="Category")
     input_words         = Input((100,), name="word")
 
+    kernel_initialize = "glorot_uniform"
+
     x_num = BatchNormalization()(input_num)
-    x_num = Dense(32, activation="relu", kernel_initializer="glorot_normal")(x_num)
+    x_num = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_num)
     x_num = BatchNormalization()(x_num)
     x_num = Dropout(0.25)(x_num)
 
     x_reg_st = BatchNormalization()(input_reg_st)
-    x_reg_st = Dense(16, activation="relu", kernel_initializer="glorot_normal")(x_reg_st)
+    x_reg_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_reg_st)
     x_reg_st = BatchNormalization()(x_reg_st)
     x_reg_st = Dropout(0.25)(x_reg_st)
 
     x_city_st = BatchNormalization()(input_city_st)
-    x_city_st = Dense(16, activation="relu", kernel_initializer="glorot_normal")(x_city_st)
+    x_city_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_city_st)
     x_city_st = BatchNormalization()(x_city_st)
     x_city_st = Dropout(0.25)(x_city_st)
 
     x_parent_cat_st = BatchNormalization()(input_parent_cat_st)
-    x_parent_cat_st = Dense(16, activation="relu", kernel_initializer="glorot_normal")(x_parent_cat_st)
+    x_parent_cat_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_parent_cat_st)
     x_parent_cat_st = BatchNormalization()(x_parent_cat_st)
     x_parent_cat_st = Dropout(0.25)(x_parent_cat_st)
 
+
     x_cat_name_st = BatchNormalization()(input_cat_name_st)
-    x_cat_name_st = Dense(16, activation="relu", kernel_initializer="glorot_normal")(x_cat_name_st)
+    x_cat_name_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_cat_name_st)
     x_cat_name_st = BatchNormalization()(x_cat_name_st)
     x_cat_name_st = Dropout(0.25)(x_cat_name_st)
 
-    x_num = concatenate([x_num, x_reg_st, x_city_st, x_parent_cat_st, x_cat_name_st])
+    x_img_top1_st = BatchNormalization()(input_img_top1_st)
+    x_img_top1_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_img_top1_st)
+    x_img_top1_st = BatchNormalization()(x_img_top1_st)
+    x_img_top1_st = Dropout(0.25)(x_img_top1_st)
+
+    x_user_type_st = BatchNormalization()(input_user_type_st)
+    x_user_type_st = Dense(16, activation="relu", kernel_initializer=kernel_initialize)(x_user_type_st)
+    x_user_type_st = BatchNormalization()(x_user_type_st)
+    x_user_type_st = Dropout(0.25)(x_user_type_st)
+
+    input_p_st = concatenate([input_p1_st,
+                              input_p2_st,
+                              #input_p3_st
+                              ])
+
+    x_p1_st = BatchNormalization()(input_p_st)
+    x_p1_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_p1_st)
+    x_p1_st = BatchNormalization()(x_p1_st)
+    x_p1_st = Dropout(0.25)(x_p1_st)
+
+    x_p2_st = BatchNormalization()(input_p2_st)
+    x_p2_st = Dense(16, activation="relu", kernel_initializer=kernel_initialize)(x_p2_st)
+    x_p2_st = BatchNormalization()(x_p2_st)
+    x_p2_st = Dropout(0.25)(x_p2_st)
+
+    x_p3_st = BatchNormalization()(input_p3_st)
+    x_p3_st = Dense(16, activation="relu", kernel_initializer=kernel_initialize)(x_p3_st)
+    x_p3_st = BatchNormalization()(x_p3_st)
+    x_p3_st = Dropout(0.25)(x_p3_st)
+
+    x_ads_count_st = BatchNormalization()(input_ads_count_st)
+    x_ads_count_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_ads_count_st)
+    x_ads_count_st = BatchNormalization()(x_ads_count_st)
+    x_ads_count_st = Dropout(0.25)(x_ads_count_st)
+
+    x_wd_st = BatchNormalization()(input_wd_st)
+    x_wd_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_wd_st)
+    x_wd_st = BatchNormalization()(x_wd_st)
+    x_wd_st = Dropout(0.25)(x_wd_st)
+
+    x_num = concatenate([x_num,
+                         x_reg_st,
+                         #x_city_st,
+                         x_parent_cat_st,
+                         #x_cat_name_st,
+                         #x_img_top1_st,
+                         #x_user_type_st,
+                         #x_p1_st,
+                         #x_p2_st,
+                         #x_p3_st,
+                         #x_ads_count_st,
+                         #x_wd_st,
+                         ])
 
     cat_embeds = []
     for idx in range(X_cat.shape[1]):
@@ -202,27 +329,38 @@ def get_model():
         cat_embeds.append(x_cat)
 
     embeds = concatenate(cat_embeds)
-    embeds = BatchNormalization()(embeds)
-    embeds = Dropout(0.2)(embeds)
+    #embeds = BatchNormalization()(embeds)
+    #embeds = Dropout(0.2)(embeds)
 
     x_words = kmodel.CapsuleNet(input_words, 50000, 300, embedding_weights)
     x_words = BatchNormalization()(x_words)
-    x_words = Dropout(0.2)(x_words)
+    #x_words = Dropout(0.2)(x_words)
 
-    x = concatenate([x_num, embeds, x_words])
+    x = concatenate([x_num,
+                     embeds,
+                     #x_words
+                     ])
     x = BatchNormalization()(x)
-    x = Dense(32, activation="relu", kernel_initializer="glorot_normal")(x)
+    x = Dense(64, activation="relu", kernel_initializer=kernel_initialize)(x)
     x = BatchNormalization()(x)
-    outp = Dense(1, activation="sigmoid", kernel_initializer="glorot_normal")(x)
+    x = Dropout(0.25)(x)
+    outp = Dense(1, activation="sigmoid", kernel_initializer=kernel_initialize)(x)
 
     input_list = [
         input_num,
         input_reg_st,
-        input_city_st,
+        #input_city_st,
         input_parent_cat_st,
-        input_cat_name_st,
+        #input_cat_name_st,
+        #input_img_top1_st,
+        #input_user_type_st,
+        #input_p1_st,
+        #input_p2_st,
+        #input_p3_st,
+        #input_ads_count_st,
+        #input_wd_st,
         input_cat,
-        input_words
+        #input_words
     ]
     model = Model(inputs=input_list, outputs=outp)
     model.compile(optimizer=optimizers.Adam(lr=args.lr), loss="mean_squared_error", metrics=[rmse])
@@ -252,8 +390,8 @@ def train():
 
     if n_folds:
         # Train with k-fold
-        skf = KFold(n_folds, shuffle=True, random_state=2018)
-        for fold, (train_index, val_index) in enumerate(skf.split(X_num)):
+        skf = KFold(n_folds)
+        for fold, (train_index, val_index) in enumerate(skf.split(X_num_num)):
 
             model = get_model()
             # model.summary()
@@ -274,7 +412,14 @@ def train():
             X_tr_city_st        = X_city_st[train_index]
             X_tr_parent_cat_st  = X_parent_cat_st[train_index]
             X_tr_cat_name_st    = X_cat_name_st[train_index]
-            X_tr_word              = X_word[train_index]
+            X_tr_img_top1_st    = X_img_top1_st[train_index]
+            X_tr_user_type_st   = X_user_type_st[train_index]
+            X_tr_p1_st          = X_p1_st[train_index]
+            X_tr_p2_st          = X_p2_st[train_index]
+            X_tr_p3_st          = X_p3_st[train_index]
+            X_tr_ads_count_st   = X_ads_count_st[train_index]
+            X_tr_wd_st          = X_wd_st[train_index]
+            X_tr_word           = X_word[train_index]
             y_tr                = y[train_index]
 
             X_va_num            = X_num_num[val_index]
@@ -283,27 +428,48 @@ def train():
             X_va_city_st        = X_city_st[val_index]
             X_va_parent_cat_st  = X_parent_cat_st[val_index]
             X_va_cat_name_st    = X_cat_name_st[val_index]
+            X_va_img_top1_st    = X_img_top1_st[val_index]
+            X_va_user_type_st   = X_user_type_st[val_index]
+            X_va_p1_st          = X_p1_st[val_index]
+            X_va_p2_st          = X_p2_st[val_index]
+            X_va_p3_st          = X_p3_st[val_index]
+            X_va_ads_count_st   = X_ads_count_st[val_index]
+            X_va_wd_st          = X_wd_st[val_index]
             X_va_word           = X_word[val_index]
             y_va                = y[val_index]
 
             train_inputs = [
                 X_tr_num,
                 X_tr_reg_st,
-                X_tr_city_st,
+                #X_tr_city_st,
                 X_tr_parent_cat_st,
-                X_tr_cat_name_st,
+                #X_tr_cat_name_st,
+                #X_tr_img_top1_st,
+                #X_tr_user_type_st,
+                #X_tr_p1_st,
+                #X_tr_p2_st,
+                #X_tr_p3_st,
+                #X_tr_ads_count_st,
+                #X_tr_wd_st,
                 X_tr_cat,
-                X_tr_word
+                #X_tr_word
             ]
 
             val_inputs = [
                 X_va_num,
                 X_va_reg_st,
-                X_va_city_st,
+                #X_va_city_st,
                 X_va_parent_cat_st,
-                X_va_cat_name_st,
+                #X_va_cat_name_st,
+                #X_va_img_top1_st,
+                #X_va_user_type_st,
+                #X_va_p1_st,
+                #X_va_p2_st,
+                #X_va_p3_st,
+                #X_va_ads_count_st,
+                #X_va_wd_st,
                 X_va_cat,
-                X_va_word
+                #X_va_word
             ]
 
             history = model.fit(train_inputs, y_tr,
