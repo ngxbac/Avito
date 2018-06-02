@@ -327,10 +327,15 @@ def get_model():
         x_cat = Lambda(lambda x: x[:, idx, None])(input_cat)
         x_cat = Embedding(cat_token_len[idx] + 1, 4, input_length=1)(x_cat)
         # x_cat = SpatialDropout1D(0.25)(x_cat)
-        x_cat = Flatten()(x_cat)
+        #x_cat = Flatten()(x_cat)
         cat_embeds.append(x_cat)
 
     embeds = concatenate(cat_embeds)
+    x_num = Reshape((1, -1))(X_num)
+    e_num = concatenate([embeds, x_num])
+    e_num = CuDNNGRU(32)(e_num)
+    e_num = BatchNormalization()(e_num)
+    e_num = Dropout(0.2)(e_num)
     #embeds = BatchNormalization()(embeds)
     #embeds = Dropout(0.2)(embeds)
 
@@ -338,8 +343,9 @@ def get_model():
     #x_words = BatchNormalization()(x_words)
     #x_words = Dropout(0.2)(x_words)
 
-    x = concatenate([x_num,
-                     embeds,
+    x = concatenate([#x_num,
+                     #embeds,
+                     e_num,
                      x_words
                      ])
     x = BatchNormalization()(x)
