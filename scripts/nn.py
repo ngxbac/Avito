@@ -30,13 +30,18 @@ def add_args(parser):
     arg('--kfold', type=int, default=10)
     # arg('--workers', type=int, default=12)
     # arg('--device-ids', type=str, help='For example 0,1 to run on two GPUs')
-    arg('--model_name', type=str, default="avito_model")
+    arg('--model_name', type=str, default="new_nn")
 
 parser = argparse.ArgumentParser()
 arg = parser.add_argument
 
 add_args(parser)
 args = parser.parse_args()
+
+if args.mode == "train":
+    is_train = True
+else:
+    is_train = False
 
 # Load all the features
 """
@@ -49,7 +54,7 @@ The order of features should be
 - ridge_text
 - ridge_params
 """
-features, fnames = utils.load_features()
+features, fnames = utils.load_features(is_train)
 
 # Flat the features
 y              = features[0]
@@ -62,10 +67,15 @@ X_cat          = features[2]
 X_word         = features[7]
 embedding_weights = features[8]
 
-cat_token_len = []
-for cat in range(X_cat.shape[1]):
-    tmp = X_cat[:, cat]
-    cat_token_len.append(len(np.unique(tmp)))
+if is_train:
+    cat_token_len = []
+    for cat in range(X_cat.shape[1]):
+        tmp = X_cat[:, cat]
+        cat_token_len.append(len(np.unique(tmp)))
+
+    np.save("features/token_len.npy", np.array(cat_token_len))
+else:
+    cat_token_len = np.load("features/token_len.npy")
 
 # Define the list that unused
 unused_num = [
@@ -134,6 +144,14 @@ unused_cat = [
 
 X_cat = utils.unused_category(X_cat, unused_cat)
 # print("[+] Cat features \n{}".format(cat_keep_list))
+
+print(X_num_num.shape)
+print(X_region_st.shape)
+print(X_city_st.shape)
+print(X_parent_cat_st.shape)
+print(X_cat_name_st.shape)
+print(X_cat.shape)
+
 
 # RMSE function
 def rmse(y_true, y_pred):
@@ -234,7 +252,7 @@ def train():
 
     if n_folds:
         # Train with k-fold
-        skf = KFold(n_folds)
+        skf = KFold(n_folds, shuffle=True, random_state=2018)
         for fold, (train_index, val_index) in enumerate(skf.split(X_num)):
 
             model = get_model()
@@ -300,7 +318,12 @@ def train():
         callbacks_list = [checkpoint, early, lr_reduced, csv_logger]
 
         train_inputs = [
-            X_num, X_cat,
+            X_num_num,
+            X_region_st,
+            X_city_st,
+            X_parent_cat_st,
+            X_cat_name_st,
+            X_cat,
             X_word
         ]
 
@@ -312,14 +335,18 @@ def test():
     predict_root = "predict"
     checkpoint_path = f"checkpoint/{args.model_name}/"
     file_path = f"{checkpoint_path}/{args.model_name}_best.h5"
-    sample_submission = "/User/ngxbac/project/kaggle/avito/sample_submission.csv"
+    sample_submission = "/home/deeplearning/Kaggle/avito/input/sample_submission.csv"
 
     n_folds = args.kfold
 
     test_inputs = [
-        X_num, X_cat,
-        # X_tfidf_text, X_tfidf_params,
-        # X_ridge_text, X_ridge_params
+        X_num_num,
+        X_region_st,
+        X_city_st,
+        X_parent_cat_st,
+        X_cat_name_st,
+        X_cat,
+        X_word
     ]
 
     if n_folds:
@@ -327,6 +354,7 @@ def test():
         preds_all = []
         for fold in range(n_folds):
             model = get_model()
+            model.summary()
             print(f"\n[+] Test Fold {fold}")
             file_path = f"{checkpoint_path}/{args.model_name}_best_{fold}.h5"
             model.load_weights(file_path)
