@@ -205,12 +205,14 @@ wd_st = [
 X_wd_st = utils.use_numeric(X_num, wd_st)
 
 unused_cat = [
-    # "weekday",
+    "weekday",
     # "param_3"
     # "ads_count"
     "no_p1",
     "no_p2",
-    "no_p3"
+    "no_p3",
+    "no_img",
+    "no_dsc",
 ]
 
 X_cat = utils.unused_category(X_cat, unused_cat)
