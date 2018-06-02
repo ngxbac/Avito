@@ -205,14 +205,14 @@ wd_st = [
 X_wd_st = utils.use_numeric(X_num, wd_st)
 
 unused_cat = [
-    "weekday",
+    #"weekday",
     # "param_3"
     # "ads_count"
-    "no_p1",
-    "no_p2",
-    "no_p3",
-    "no_img",
-    "no_dsc",
+    #"no_p1",
+    #"no_p2",
+    #"no_p3",
+    #"no_img",
+    #"no_dsc",
 ]
 
 X_cat = utils.unused_category(X_cat, unused_cat)
@@ -335,12 +335,12 @@ def get_model():
     #embeds = Dropout(0.2)(embeds)
 
     x_words = kmodel.CapsuleNet(input_words, 50000, 300, embedding_weights)
-    x_words = BatchNormalization()(x_words)
+    #x_words = BatchNormalization()(x_words)
     #x_words = Dropout(0.2)(x_words)
 
     x = concatenate([x_num,
                      embeds,
-                     #x_words
+                     x_words
                      ])
     x = BatchNormalization()(x)
     x = Dense(64, activation="relu", kernel_initializer=kernel_initialize)(x)
@@ -362,7 +362,7 @@ def get_model():
         #input_ads_count_st,
         #input_wd_st,
         input_cat,
-        #input_words
+        input_words
     ]
     model = Model(inputs=input_list, outputs=outp)
     model.compile(optimizer=optimizers.Adam(lr=args.lr), loss="mean_squared_error", metrics=[rmse])
@@ -454,7 +454,7 @@ def train():
                 #X_tr_ads_count_st,
                 #X_tr_wd_st,
                 X_tr_cat,
-                #X_tr_word
+                X_tr_word
             ]
 
             val_inputs = [
@@ -471,7 +471,7 @@ def train():
                 #X_va_ads_count_st,
                 #X_va_wd_st,
                 X_va_cat,
-                #X_va_word
+                X_va_word
             ]
 
             history = model.fit(train_inputs, y_tr,
