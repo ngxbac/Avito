@@ -331,7 +331,7 @@ def get_model():
         cat_embeds.append(x_cat)
 
     embeds = concatenate(cat_embeds)
-    x_num = Reshape((1, -1))(X_num)
+    x_num = Reshape((1, -1))(x_num)
     e_num = concatenate([embeds, x_num])
     e_num = CuDNNGRU(32)(e_num)
     e_num = BatchNormalization()(e_num)
@@ -398,7 +398,7 @@ def train():
 
     if n_folds:
         # Train with k-fold
-        skf = KFold(n_folds)
+        skf = KFold(n_folds, shuffle=True, random_state=2018)
         for fold, (train_index, val_index) in enumerate(skf.split(X_num_num)):
 
             model = get_model()
@@ -494,9 +494,16 @@ def train():
         train_inputs = [
             X_num_num,
             X_region_st,
-            X_city_st,
+            # X_city_st,
             X_parent_cat_st,
-            X_cat_name_st,
+            # X_va_cat_name_st,
+            # X_va_img_top1_st,
+            # X_va_user_type_st,
+            # X_va_p1_st,
+            # X_va_p2_st,
+            # X_va_p3_st,
+            # X_va_ads_count_st,
+            # X_va_wd_st,
             X_cat,
             X_word
         ]
@@ -516,9 +523,16 @@ def test():
     test_inputs = [
         X_num_num,
         X_region_st,
-        X_city_st,
+        # X_city_st,
         X_parent_cat_st,
-        X_cat_name_st,
+        # X_va_cat_name_st,
+        # X_va_img_top1_st,
+        # X_va_user_type_st,
+        # X_va_p1_st,
+        # X_va_p2_st,
+        # X_va_p3_st,
+        # X_va_ads_count_st,
+        # X_va_wd_st,
         X_cat,
         X_word
     ]
@@ -535,6 +549,7 @@ def test():
             pred = model.predict(test_inputs, batch_size=args.batch_size)
             submission = pd.read_csv(sample_submission)
             submission['deal_probability'] = pred
+
             utils.save_csv(submission, predict_root, f"{args.model_name}_{fold}.csv")
             preds_all.append(pred)
         preds_all = np.array(preds_all)
