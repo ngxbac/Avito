@@ -64,7 +64,7 @@ df['weekday'] = df['activation_date'].dt.weekday
 df["item_seq_bin"] = df["item_seq_number"] // 100
 df["ads_count"] = df.groupby("user_id", as_index=False)["user_id"].transform(lambda s: s.count())
 
-textfeats1 = ['description', "title", 'param_1', 'param_2', 'param_3', 'description_norm', "title_norm"]
+textfeats1 = ['description', "title", 'param_1', 'param_2', 'param_3']
 for col in textfeats1:
     df[col] = df[col].astype(str)
     df[col] = df[col].astype(str).fillna(' ')

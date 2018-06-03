@@ -37,15 +37,26 @@ gc.collect()
 
 df['no_img'] = pd.isna(df.image).astype(int)
 df['no_dsc'] = pd.isna(df.description).astype(int)
+df['no_title'] = pd.isna(df.title).astype(int)
 df['no_p1'] = pd.isna(df.param_1).astype(int)
 df['no_p2'] = pd.isna(df.param_2).astype(int)
 df['no_p3'] = pd.isna(df.param_3).astype(int)
+df['no_price'] = pd.isna(df.price).astype(int)
+df['no_region'] = pd.isna(df.region).astype(int)
+df['no_city'] = pd.isna(df.city).astype(int)
+df['no_category_name'] = pd.isna(df.category_name).astype(int)
+df['no_parent_category_name'] = pd.isna(df.parent_category_name).astype(int)
+df["no_image_top_1"] = pd.isna(df.image_top_1).astype(int)
+df["no_user_type"] = pd.isna(df.user_type).astype(int)
 
 df['weekday'] = df['activation_date'].dt.weekday
+df["item_seq_bin"] = df["item_seq_number"] // 100
+df["ads_count"] = df.groupby("user_id", as_index=False)["user_id"].transform(lambda s: s.count())
 # Category columns
 cat_cols = ["user_type", 'region', 'city', 'category_name', "parent_category_name",
             'param_1', 'param_2', 'param_3', "no_p1", "no_p2", "no_p3",
-            'weekday', 'image_top_1', "no_img", "no_dsc"]
+            'weekday', 'image_top_1', "no_img", "no_dsc", "no_title", "item_seq_bin", "ads_count",
+            "no_price", "no_region", "no_city", "no_category_name", "no_parent_category_name", "no_image_top_1"]
 
 for col in cat_cols:
     df[col] = df[col].astype(str)

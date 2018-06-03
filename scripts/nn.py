@@ -207,7 +207,14 @@ X_wd_st = utils.use_numeric(X_num, wd_st)
 unused_cat = [
     #"weekday",
     # "param_3"
-    # "ads_count"
+    "ads_count",
+    "no_price",
+    "no_region",
+    "no_city",
+    "no_category_name",
+    "no_parent_category_name",
+    "no_image_top_1",
+    "no_title"
     #"no_p1",
     #"no_p2",
     #"no_p3",
@@ -312,7 +319,7 @@ def get_model():
                          x_reg_st,
                          #x_city_st,
                          x_parent_cat_st,
-                         #x_cat_name_st,
+                         x_cat_name_st,
                          #x_img_top1_st,
                          #x_user_type_st,
                          #x_p1_st,
@@ -333,7 +340,7 @@ def get_model():
     embeds = concatenate(cat_embeds)
     x_num = Reshape((1, -1))(x_num)
     e_num = concatenate([embeds, x_num])
-    e_num = CuDNNGRU(32)(e_num)
+    e_num = CuDNNGRU(128)(e_num)
     e_num = BatchNormalization()(e_num)
     e_num = Dropout(0.2)(e_num)
     #embeds = BatchNormalization()(embeds)
@@ -351,7 +358,7 @@ def get_model():
     x = BatchNormalization()(x)
     x = Dense(64, activation="relu", kernel_initializer=kernel_initialize)(x)
     x = BatchNormalization()(x)
-    x = Dropout(0.25)(x)
+    x = Dropout(0.05)(x)
     outp = Dense(1, activation="sigmoid", kernel_initializer=kernel_initialize)(x)
 
     input_list = [
@@ -359,7 +366,7 @@ def get_model():
         input_reg_st,
         #input_city_st,
         input_parent_cat_st,
-        #input_cat_name_st,
+        input_cat_name_st,
         #input_img_top1_st,
         #input_user_type_st,
         #input_p1_st,
@@ -398,7 +405,8 @@ def train():
 
     if n_folds:
         # Train with k-fold
-        skf = KFold(n_folds, shuffle=True, random_state=2018)
+        #skf = KFold(n_folds, shuffle=True, random_state=2018)
+        skf = KFold(n_folds)
         for fold, (train_index, val_index) in enumerate(skf.split(X_num_num)):
 
             model = get_model()
@@ -451,7 +459,7 @@ def train():
                 X_tr_reg_st,
                 #X_tr_city_st,
                 X_tr_parent_cat_st,
-                #X_tr_cat_name_st,
+                X_tr_cat_name_st,
                 #X_tr_img_top1_st,
                 #X_tr_user_type_st,
                 #X_tr_p1_st,
@@ -468,7 +476,7 @@ def train():
                 X_va_reg_st,
                 #X_va_city_st,
                 X_va_parent_cat_st,
-                #X_va_cat_name_st,
+                X_va_cat_name_st,
                 #X_va_img_top1_st,
                 #X_va_user_type_st,
                 #X_va_p1_st,
@@ -525,14 +533,14 @@ def test():
         X_region_st,
         # X_city_st,
         X_parent_cat_st,
-        # X_va_cat_name_st,
-        # X_va_img_top1_st,
-        # X_va_user_type_st,
-        # X_va_p1_st,
-        # X_va_p2_st,
-        # X_va_p3_st,
-        # X_va_ads_count_st,
-        # X_va_wd_st,
+        X_cat_name_st,
+        # X_img_top1_st,
+        # X_user_type_st,
+        # X_p1_st,
+        # X_p2_st,
+        # X_p3_st,
+        # X_ads_count_st,
+        # X_wd_st,
         X_cat,
         X_word
     ]

@@ -13,3 +13,12 @@ weekday
 image_top_1
 no_img
 no_dsc
+no_title
+item_seq_bin
+ads_count
+no_price
+no_region
+no_city
+no_category_name
+no_parent_category_name
+no_image_top_1

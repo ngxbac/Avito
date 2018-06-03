@@ -102,4 +102,5 @@ def unused_category(X_cat, unsed_num):
 
     X_cat_new = X_cat[:, index_list]
     keep_list = list(set(cat_columns) - set(unsed_num))
+    print("[+] Category {}".format(keep_list))
     return X_cat_new
