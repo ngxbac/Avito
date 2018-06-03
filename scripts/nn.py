@@ -85,8 +85,10 @@ use_num = [
     "image_top_1",
     "item_seq_number",
     "price",
-    "description_num_words",
-    "title_num_words"
+    #"description_num_words",
+    #"title_num_words",
+    #"n_user_items",
+    #"item_seq_bin",
 ]
 
 X_num_num = utils.use_numeric(X_num, use_num)
@@ -228,6 +230,16 @@ title_count = [
 
 X_title_count = utils.use_numeric(X_num, title_count)
 
+if is_train:
+    img_meta = "train_img_meta.csv"
+else:
+    img_meta = "test_img_meta.csv"
+
+img_meta_df = pd.read_csv("/home/deeplearning/Kaggle/avito/input/"+img_meta, usecols=["width", "height"])
+img_meta_df["area"] = img_meta_df["width"] * img_meta_df["height"]
+X_img_meta = img_meta_df.values
+X_img_meta = np.log1p(X_img_meta)
+
 unused_cat = [
     #"weekday",
     # "param_3"
@@ -270,6 +282,7 @@ def get_model():
     input_wd_st         = Input(shape=(X_wd_st.shape[1],), name="wd_st")
     input_desc_count    = Input(shape=(X_desc_count.shape[1],), name="description_count")
     input_title_count   = Input(shape=(X_title_count.shape[1],), name="title_count")
+    input_img_meta      = Input(shape=(X_img_meta.shape[1], ), name="Image_meta_data")
     input_cat           = Input(shape=(X_cat.shape[1],), name="Category")
     input_words         = Input((100,), name="word")
 
@@ -337,6 +350,11 @@ def get_model():
     x_wd_st = BatchNormalization()(x_wd_st)
     x_wd_st = Dropout(0.2)(x_wd_st)
 
+    x_img_meta = BatchNormalization()(input_img_meta)
+    x_img_meta = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_img_meta)
+    x_img_meta = BatchNormalization()(x_img_meta)
+    x_img_meta = Dropout(0.2)(x_img_meta)
+
     text_count = concatenate([input_desc_count, input_title_count])
     text_count = Reshape((1, -1))(text_count)
     text_count = CuDNNGRU(64)(text_count)
@@ -364,7 +382,8 @@ def get_model():
                          #x_wd_st,
                          #x_desc_count,
                          #x_title_count,
-                         #text_count
+                         #text_count,
+                         #x_img_meta
                          ])
 
     cat_embeds = []
@@ -392,10 +411,14 @@ def get_model():
                      #embeds,
                      e_num,
                      x_words,
-                     text_count,
-                     p_st,
+                     #text_count,
+                     #p_st,
+                     #x_img_meta,
                      ])
     x = BatchNormalization()(x)
+    x = Dense(128, activation="relu", kernel_initializer=kernel_initialize)(x)
+    x = BatchNormalization()(x)
+    x = Dropout(0.2)(x)
     x = Dense(64, activation="relu", kernel_initializer=kernel_initialize)(x)
     x = BatchNormalization()(x)
     x = Dropout(0.05)(x)
@@ -416,6 +439,7 @@ def get_model():
         #input_wd_st,
         #input_desc_count,
         #input_title_count,
+        #input_img_meta,
         input_cat,
         input_words
     ]
@@ -437,7 +461,7 @@ def train():
                                  mode='min')
     early = EarlyStopping(monitor="val_loss", mode="min", patience=5, min_delta=1e-4)
     lr_reduced = ReduceLROnPlateau(monitor='val_loss',
-                                   factor=0.1,
+                                   factor=0.5,
                                    patience=3,
                                    verbose=1,
                                    epsilon=1e-4,
@@ -480,6 +504,7 @@ def train():
             X_tr_wd_st          = X_wd_st[train_index]
             X_tr_desc_count     = X_desc_count[train_index]
             X_tr_title_count    = X_title_count[train_index]
+            X_tr_img_meta       = X_img_meta[train_index]
             X_tr_word           = X_word[train_index]
             y_tr                = y[train_index]
 
@@ -498,6 +523,7 @@ def train():
             X_va_wd_st          = X_wd_st[val_index]
             X_va_desc_count     = X_desc_count[val_index]
             X_va_title_count    = X_title_count[val_index]
+            X_va_img_meta       = X_img_meta[val_index]
             X_va_word           = X_word[val_index]
             y_va                = y[val_index]
 
@@ -516,6 +542,7 @@ def train():
                 #X_tr_wd_st,
                 #X_tr_desc_count,
                 #X_tr_title_count,
+                #X_tr_img_meta,
                 X_tr_cat,
                 X_tr_word
             ]
@@ -535,6 +562,7 @@ def train():
                 #X_va_wd_st,
                 #X_va_desc_count,
                 #X_va_title_count,
+                #X_va_img_meta,
                 X_va_cat,
                 X_va_word
             ]
