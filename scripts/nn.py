@@ -184,15 +184,15 @@ p3_st = [
 
 X_p3_st = utils.use_numeric(X_num, p3_st)
 
-ads_count_st = [
-    "ads_count_dp_mean",
-    "ads_count_dp_std",
-    "ads_count_price_mean",
-    "ads_count_price_std",
-    "ads_count_to_price",
-]
-
-X_ads_count_st = utils.use_numeric(X_num, ads_count_st)
+# ads_count_st = [
+#     "ads_count_dp_mean",
+#     "ads_count_dp_std",
+#     "ads_count_price_mean",
+#     "ads_count_price_std",
+#     "ads_count_to_price",
+# ]
+#
+# X_ads_count_st = utils.use_numeric(X_num, ads_count_st)
 
 wd_st = [
     "weekday_dp_mean",
@@ -203,6 +203,27 @@ wd_st = [
 ]
 
 X_wd_st = utils.use_numeric(X_num, wd_st)
+
+desc_count_st = [
+    "avg_days_up_user",
+    "avg_times_up_user",
+    "n_user_items",
+    "month",
+    "day",
+    "week",
+]
+
+X_desc_count_st = utils.use_numeric(X_num, desc_count_st)
+
+title_count_st = [
+    "title_num_words_dp_mean",
+    "title_num_words_dp_std",
+    "title_num_words_price_mean",
+    "title_num_words_price_std",
+    "title_num_words_to_price",
+]
+
+X_title_count_st = utils.use_numeric(X_num, title_count_st)
 
 unused_cat = [
     #"weekday",
@@ -242,8 +263,10 @@ def get_model():
     input_p1_st         = Input(shape=(X_p1_st.shape[1],), name="p1_st")
     input_p2_st         = Input(shape=(X_p2_st.shape[1],), name="p2_st")
     input_p3_st         = Input(shape=(X_p3_st.shape[1],), name="p3_st")
-    input_ads_count_st  = Input(shape=(X_ads_count_st.shape[1],), name="ads_count_st")
+    # input_ads_count_st  = Input(shape=(X_ads_count_st.shape[1],), name="ads_count_st")
     input_wd_st         = Input(shape=(X_wd_st.shape[1],), name="wd_st")
+    input_desc_count_st = Input(shape=(X_desc_count_st.shape[1],), name="desc_count_st")
+    input_title_count_st= Input(shape=(X_title_count_st.shape[1],), name="title_count_st")
     input_cat           = Input(shape=(X_cat.shape[1],), name="Category")
     input_words         = Input((100,), name="word")
 
@@ -305,15 +328,25 @@ def get_model():
     x_p3_st = BatchNormalization()(x_p3_st)
     x_p3_st = Dropout(0.25)(x_p3_st)
 
-    x_ads_count_st = BatchNormalization()(input_ads_count_st)
-    x_ads_count_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_ads_count_st)
-    x_ads_count_st = BatchNormalization()(x_ads_count_st)
-    x_ads_count_st = Dropout(0.25)(x_ads_count_st)
+    # x_ads_count_st = BatchNormalization()(input_ads_count_st)
+    # x_ads_count_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_ads_count_st)
+    # x_ads_count_st = BatchNormalization()(x_ads_count_st)
+    # x_ads_count_st = Dropout(0.25)(x_ads_count_st)
 
     x_wd_st = BatchNormalization()(input_wd_st)
     x_wd_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_wd_st)
     x_wd_st = BatchNormalization()(x_wd_st)
     x_wd_st = Dropout(0.25)(x_wd_st)
+
+    x_desc_count_st = BatchNormalization()(input_desc_count_st)
+    x_desc_count_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_desc_count_st)
+    x_desc_count_st = BatchNormalization()(x_desc_count_st)
+    x_desc_count_st = Dropout(0.25)(x_desc_count_st)
+
+    x_title_count_st = BatchNormalization()(input_title_count_st)
+    x_title_count_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_title_count_st)
+    x_title_count_st = BatchNormalization()(x_title_count_st)
+    x_title_count_st = Dropout(0.25)(x_title_count_st)
 
     x_num = concatenate([x_num,
                          x_reg_st,
@@ -327,6 +360,8 @@ def get_model():
                          #x_p3_st,
                          #x_ads_count_st,
                          #x_wd_st,
+                         # x_desc_count_st,
+                         # x_title_count_st,
                          ])
 
     cat_embeds = []
@@ -353,7 +388,8 @@ def get_model():
     x = concatenate([#x_num,
                      #embeds,
                      e_num,
-                     x_words
+                     x_words,
+                     x_desc_count_st
                      ])
     x = BatchNormalization()(x)
     x = Dense(64, activation="relu", kernel_initializer=kernel_initialize)(x)
@@ -374,11 +410,15 @@ def get_model():
         #input_p3_st,
         #input_ads_count_st,
         #input_wd_st,
+        input_desc_count_st,
+        # input_title_count_st,
         input_cat,
         input_words
     ]
     model = Model(inputs=input_list, outputs=outp)
     model.compile(optimizer=optimizers.Adam(lr=args.lr), loss="mean_squared_error", metrics=[rmse])
+
+    plot_model(model, to_file='new_model.png')
     return model
 
 
@@ -433,8 +473,10 @@ def train():
             X_tr_p1_st          = X_p1_st[train_index]
             X_tr_p2_st          = X_p2_st[train_index]
             X_tr_p3_st          = X_p3_st[train_index]
-            X_tr_ads_count_st   = X_ads_count_st[train_index]
+            # X_tr_ads_count_st   = X_ads_count_st[train_index]
             X_tr_wd_st          = X_wd_st[train_index]
+            X_tr_desc_count_st  = X_desc_count_st[train_index]
+            # X_tr_title_count_st = X_title_count_st[train_index]
             X_tr_word           = X_word[train_index]
             y_tr                = y[train_index]
 
@@ -449,8 +491,10 @@ def train():
             X_va_p1_st          = X_p1_st[val_index]
             X_va_p2_st          = X_p2_st[val_index]
             X_va_p3_st          = X_p3_st[val_index]
-            X_va_ads_count_st   = X_ads_count_st[val_index]
+            # X_va_ads_count_st   = X_ads_count_st[val_index]
             X_va_wd_st          = X_wd_st[val_index]
+            X_va_desc_count_st  = X_desc_count_st[val_index]
+            # X_va_title_count_st = X_title_count_st[val_index]
             X_va_word           = X_word[val_index]
             y_va                = y[val_index]
 
@@ -467,6 +511,8 @@ def train():
                 #X_tr_p3_st,
                 #X_tr_ads_count_st,
                 #X_tr_wd_st,
+                X_tr_desc_count_st,
+                # X_tr_title_count_st,
                 X_tr_cat,
                 X_tr_word
             ]
@@ -484,6 +530,8 @@ def train():
                 #X_va_p3_st,
                 #X_va_ads_count_st,
                 #X_va_wd_st,
+                X_va_desc_count_st,
+                # X_va_title_count_st,
                 X_va_cat,
                 X_va_word
             ]
@@ -531,16 +579,18 @@ def test():
     test_inputs = [
         X_num_num,
         X_region_st,
-        # X_city_st,
+        # X_va_city_st,
         X_parent_cat_st,
         X_cat_name_st,
-        # X_img_top1_st,
-        # X_user_type_st,
-        # X_p1_st,
-        # X_p2_st,
-        # X_p3_st,
-        # X_ads_count_st,
-        # X_wd_st,
+        # X_va_img_top1_st,
+        # X_va_user_type_st,
+        # X_va_p1_st,
+        # X_va_p2_st,
+        # X_va_p3_st,
+        # X_va_ads_count_st,
+        # X_va_wd_st,
+        X_desc_count_st,
+        # X_va_title_count_st,
         X_cat,
         X_word
     ]
@@ -550,9 +600,10 @@ def test():
         preds_all = []
         for fold in range(n_folds):
             model = get_model()
-            model.summary()
+            # model.summary()
             print(f"\n[+] Test Fold {fold}")
             file_path = f"{checkpoint_path}/{args.model_name}_best_{fold}.h5"
+            print(file_path)
             model.load_weights(file_path)
             pred = model.predict(test_inputs, batch_size=args.batch_size)
             submission = pd.read_csv(sample_submission)

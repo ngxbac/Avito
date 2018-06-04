@@ -61,6 +61,9 @@ df['avg_times_up_user'].fillna(df["avg_times_up_user"].mean(), inplace=True)
 df['n_user_items'].fillna(df["n_user_items"].mean(), inplace=True)
 
 df['weekday'] = df['activation_date'].dt.weekday
+df['month'] = df.activation_date.dt.month
+df['day'] = df.activation_date.dt.day
+df['week'] = df.activation_date.dt.week
 df["item_seq_bin"] = df["item_seq_number"] // 100
 df["ads_count"] = df.groupby("user_id", as_index=False)["user_id"].transform(lambda s: s.count())
 
@@ -73,16 +76,16 @@ for col in textfeats1:
 textfeats = ['description', "title"]
 for col in textfeats:
     df[col + '_num_words'] = df[col].apply(lambda s: len(s.split()))
-    df[col + '_num_unique_words'] = df[col].apply(lambda s: len(set(w for w in s.split())))
-    df[col + '_words_vs_unique'] = df[col + '_num_unique_words'] / df[col + '_num_words'] * 100
-    df[col + '_num_lowE'] = df[col].str.count("[a-z]")
-    df[col + '_num_lowR'] = df[col].str.count("[а-я]")
-    df[col + '_num_pun'] = df[col].str.count("[[:punct:]]")
-    df[col + '_num_dig'] = df[col].str.count("[[:digit:]]")
+    # df[col + '_num_unique_words'] = df[col].apply(lambda s: len(set(w for w in s.split())))
+    # df[col + '_words_vs_unique'] = df[col + '_num_unique_words'] / df[col + '_num_words'] * 100
+    # df[col + '_num_lowE'] = df[col].str.count("[a-z]")
+    # df[col + '_num_lowR'] = df[col].str.count("[а-я]")
+    # df[col + '_num_pun'] = df[col].str.count("[[:punct:]]")
+    # df[col + '_num_dig'] = df[col].str.count("[[:digit:]]")
 
 fStats = FeaturesStatistics(['region', 'city', 'parent_category_name', 'category_name',
-                             'param_1', 'param_2', 'param_3', 'user_type', 'image_top_1',
-                             'ads_count', 'weekday'])
+                             'param_1', 'param_2', 'param_3', 'user_type', 'image_top_1', 'weekday',
+                             'description_num_words', 'title_num_words', 'month', 'day', 'week'])
 
 # Split to test and train
 X_train = df[:n_train]

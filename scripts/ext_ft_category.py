@@ -50,13 +50,17 @@ df["no_image_top_1"] = pd.isna(df.image_top_1).astype(int)
 df["no_user_type"] = pd.isna(df.user_type).astype(int)
 
 df['weekday'] = df['activation_date'].dt.weekday
+df['month'] = df.activation_date.dt.month
+df['day'] = df.activation_date.dt.day
+df['week'] = df.activation_date.dt.week
 df["item_seq_bin"] = df["item_seq_number"] // 100
 df["ads_count"] = df.groupby("user_id", as_index=False)["user_id"].transform(lambda s: s.count())
 # Category columns
 cat_cols = ["user_type", 'region', 'city', 'category_name', "parent_category_name",
             'param_1', 'param_2', 'param_3', "no_p1", "no_p2", "no_p3",
             'weekday', 'image_top_1', "no_img", "no_dsc", "no_title", "item_seq_bin", "ads_count",
-            "no_price", "no_region", "no_city", "no_category_name", "no_parent_category_name", "no_image_top_1"]
+            "no_price", "no_region", "no_city", "no_category_name", "no_parent_category_name", "no_image_top_1",
+            "month", "day", "week"]
 
 for col in cat_cols:
     df[col] = df[col].astype(str)

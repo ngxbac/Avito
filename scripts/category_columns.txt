@@ -22,3 +22,6 @@ no_city
 no_category_name
 no_parent_category_name
 no_image_top_1
+month
+day
+week
