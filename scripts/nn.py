@@ -85,8 +85,10 @@ use_num = [
     "image_top_1",
     "item_seq_number",
     "price",
-    "description_num_words",
-    "title_num_words"
+    #"description_num_words",
+    #"title_num_words",
+    #"n_user_items",
+    #"item_seq_bin",
 ]
 
 X_num_num = utils.use_numeric(X_num, use_num)
@@ -275,58 +277,54 @@ def get_model():
     x_num = BatchNormalization()(input_num)
     x_num = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_num)
     x_num = BatchNormalization()(x_num)
-    x_num = Dropout(0.25)(x_num)
+    x_num = Dropout(0.2)(x_num)
 
     x_reg_st = BatchNormalization()(input_reg_st)
     x_reg_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_reg_st)
     x_reg_st = BatchNormalization()(x_reg_st)
-    x_reg_st = Dropout(0.25)(x_reg_st)
+    x_reg_st = Dropout(0.2)(x_reg_st)
 
     x_city_st = BatchNormalization()(input_city_st)
     x_city_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_city_st)
     x_city_st = BatchNormalization()(x_city_st)
-    x_city_st = Dropout(0.25)(x_city_st)
+    x_city_st = Dropout(0.2)(x_city_st)
 
     x_parent_cat_st = BatchNormalization()(input_parent_cat_st)
     x_parent_cat_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_parent_cat_st)
     x_parent_cat_st = BatchNormalization()(x_parent_cat_st)
-    x_parent_cat_st = Dropout(0.25)(x_parent_cat_st)
+    x_parent_cat_st = Dropout(0.2)(x_parent_cat_st)
 
 
     x_cat_name_st = BatchNormalization()(input_cat_name_st)
     x_cat_name_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_cat_name_st)
     x_cat_name_st = BatchNormalization()(x_cat_name_st)
-    x_cat_name_st = Dropout(0.25)(x_cat_name_st)
+    x_cat_name_st = Dropout(0.2)(x_cat_name_st)
 
     x_img_top1_st = BatchNormalization()(input_img_top1_st)
     x_img_top1_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_img_top1_st)
     x_img_top1_st = BatchNormalization()(x_img_top1_st)
-    x_img_top1_st = Dropout(0.25)(x_img_top1_st)
+    x_img_top1_st = Dropout(0.2)(x_img_top1_st)
 
     x_user_type_st = BatchNormalization()(input_user_type_st)
     x_user_type_st = Dense(16, activation="relu", kernel_initializer=kernel_initialize)(x_user_type_st)
     x_user_type_st = BatchNormalization()(x_user_type_st)
-    x_user_type_st = Dropout(0.25)(x_user_type_st)
+    x_user_type_st = Dropout(0.2)(x_user_type_st)
 
-    input_p_st = concatenate([input_p1_st,
-                              input_p2_st,
-                              #input_p3_st
-                              ])
 
-    x_p1_st = BatchNormalization()(input_p_st)
+    x_p1_st = BatchNormalization()(input_p1_st)
     x_p1_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_p1_st)
     x_p1_st = BatchNormalization()(x_p1_st)
-    x_p1_st = Dropout(0.25)(x_p1_st)
+    x_p1_st = Dropout(0.2)(x_p1_st)
 
     x_p2_st = BatchNormalization()(input_p2_st)
     x_p2_st = Dense(16, activation="relu", kernel_initializer=kernel_initialize)(x_p2_st)
     x_p2_st = BatchNormalization()(x_p2_st)
-    x_p2_st = Dropout(0.25)(x_p2_st)
+    x_p2_st = Dropout(0.2)(x_p2_st)
 
     x_p3_st = BatchNormalization()(input_p3_st)
     x_p3_st = Dense(16, activation="relu", kernel_initializer=kernel_initialize)(x_p3_st)
     x_p3_st = BatchNormalization()(x_p3_st)
-    x_p3_st = Dropout(0.25)(x_p3_st)
+    x_p3_st = Dropout(0.2)(x_p3_st)
 
     # x_ads_count_st = BatchNormalization()(input_ads_count_st)
     # x_ads_count_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_ads_count_st)
@@ -336,7 +334,25 @@ def get_model():
     x_wd_st = BatchNormalization()(input_wd_st)
     x_wd_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_wd_st)
     x_wd_st = BatchNormalization()(x_wd_st)
-    x_wd_st = Dropout(0.25)(x_wd_st)
+    x_wd_st = Dropout(0.2)(x_wd_st)
+
+    x_img_meta = BatchNormalization()(input_img_meta)
+    x_img_meta = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_img_meta)
+    x_img_meta = BatchNormalization()(x_img_meta)
+    x_img_meta = Dropout(0.2)(x_img_meta)
+
+    text_count = concatenate([input_desc_count, input_title_count])
+    text_count = Reshape((1, -1))(text_count)
+    text_count = CuDNNGRU(64)(text_count)
+    text_count = BatchNormalization()(text_count)
+    text_count = Dropout(0.2)(text_count)
+
+    p_st = concatenate([x_p1_st, x_p2_st, x_p3_st])
+    p_st = Reshape((1, -1))(p_st)
+    p_st = CuDNNGRU(64)(p_st)
+    p_st = BatchNormalization()(p_st)
+    p_st = Dropout(0.2)(p_st)
+
 
     x_desc_count_st = BatchNormalization()(input_desc_count_st)
     x_desc_count_st = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_desc_count_st)
@@ -354,7 +370,7 @@ def get_model():
                          x_parent_cat_st,
                          x_cat_name_st,
                          #x_img_top1_st,
-                         #x_user_type_st,
+                         x_user_type_st,
                          #x_p1_st,
                          #x_p2_st,
                          #x_p3_st,
@@ -392,6 +408,9 @@ def get_model():
                      x_desc_count_st
                      ])
     x = BatchNormalization()(x)
+    x = Dense(128, activation="relu", kernel_initializer=kernel_initialize)(x)
+    x = BatchNormalization()(x)
+    x = Dropout(0.2)(x)
     x = Dense(64, activation="relu", kernel_initializer=kernel_initialize)(x)
     x = BatchNormalization()(x)
     x = Dropout(0.05)(x)
@@ -404,7 +423,7 @@ def get_model():
         input_parent_cat_st,
         input_cat_name_st,
         #input_img_top1_st,
-        #input_user_type_st,
+        input_user_type_st,
         #input_p1_st,
         #input_p2_st,
         #input_p3_st,
@@ -434,7 +453,7 @@ def train():
                                  mode='min')
     early = EarlyStopping(monitor="val_loss", mode="min", patience=5, min_delta=1e-4)
     lr_reduced = ReduceLROnPlateau(monitor='val_loss',
-                                   factor=0.1,
+                                   factor=0.5,
                                    patience=3,
                                    verbose=1,
                                    epsilon=1e-4,
@@ -505,7 +524,7 @@ def train():
                 X_tr_parent_cat_st,
                 X_tr_cat_name_st,
                 #X_tr_img_top1_st,
-                #X_tr_user_type_st,
+                X_tr_user_type_st,
                 #X_tr_p1_st,
                 #X_tr_p2_st,
                 #X_tr_p3_st,
@@ -524,7 +543,7 @@ def train():
                 X_va_parent_cat_st,
                 X_va_cat_name_st,
                 #X_va_img_top1_st,
-                #X_va_user_type_st,
+                X_va_user_type_st,
                 #X_va_p1_st,
                 #X_va_p2_st,
                 #X_va_p3_st,
