@@ -336,17 +336,6 @@ def get_model():
     x_wd_st = BatchNormalization()(x_wd_st)
     x_wd_st = Dropout(0.2)(x_wd_st)
 
-    x_img_meta = BatchNormalization()(input_img_meta)
-    x_img_meta = Dense(32, activation="relu", kernel_initializer=kernel_initialize)(x_img_meta)
-    x_img_meta = BatchNormalization()(x_img_meta)
-    x_img_meta = Dropout(0.2)(x_img_meta)
-
-    text_count = concatenate([input_desc_count, input_title_count])
-    text_count = Reshape((1, -1))(text_count)
-    text_count = CuDNNGRU(64)(text_count)
-    text_count = BatchNormalization()(text_count)
-    text_count = Dropout(0.2)(text_count)
-
     p_st = concatenate([x_p1_st, x_p2_st, x_p3_st])
     p_st = Reshape((1, -1))(p_st)
     p_st = CuDNNGRU(64)(p_st)
