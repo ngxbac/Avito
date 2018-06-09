@@ -58,7 +58,7 @@ class FeaturesStatistics():
             # Compute the mean and std of the deal prob and the price.
             gp = df.groupby(c)[['deal_probability', 'price', 'item_seq_number', "image_top_1"]]
             desc = gp.describe()
-            self._stats[c] = desc[[('deal_probability', 'mean'), ('deal_probability', 'std'),
+            self._stats[c] = desc[[#('deal_probability', 'mean'), ('deal_probability', 'std'),
                                    ('price', 'mean'), ('price', 'std'),
                                    ('item_seq_number', 'mean'), ('item_seq_number', 'std'),
                                    ("image_top_1", "count")]]
