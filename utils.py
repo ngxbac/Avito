@@ -170,3 +170,75 @@ def load_features(root, name):
         print(f"[+] Feature {name} does not exists")
         return None
     return np.load(f"{root}/{name}.npy")
+
+def load_features_2(train=True):
+    # Load numeric features
+    root = "./scripts/features/"
+
+    if train:
+        prefix = "train"
+    else:
+        prefix = "test"
+
+    ato_prefix = [
+        "num", "cat",
+        "tfidf_text", "tfidf_params",
+        "ridge_text", "ridge_params",
+        "word"
+    ]
+
+    embedding_weights = load_bcolz(root, "embedding_weights")
+    y = load_bcolz(root, "X_train_y")
+
+    fname = [f"X_{prefix}_{x}" for x in ato_prefix]
+    features = [load_bcolz(root, name) for name in fname]
+    features.append(embedding_weights)
+    features = [y] + features
+
+    return features, fname
+
+def use_numeric(X_num, use_num):
+    with open("./scripts/numeric_columns.txt", "r") as f:
+        lines = f.readlines()
+        numeric_columns = [line.rstrip('\n') for line in lines]
+
+    index_list = []
+    for i, c in enumerate(numeric_columns):
+        if c in use_num:
+            index_list.append(i)
+
+    X_num_new = X_num[:, index_list]
+    return X_num_new
+
+
+def unused_numeric(X_num, unsed_num):
+    if unsed_num == []:
+        return X_num
+
+    with open("./scripts/numeric_columns.txt", "r") as f:
+        lines = f.readlines()
+        numeric_columns = [line.rstrip('\n') for line in lines]
+
+    index_list = []
+    for i, c in enumerate(numeric_columns):
+        if c not in unsed_num:
+            index_list.append(i)
+
+    X_num_new = X_num[:, index_list]
+    return X_num_new
+
+def unused_category(X_cat, unsed_num):
+    if unsed_num == []:
+        return X_cat
+
+    with open("./scripts/category_columns.txt", "r") as f:
+        lines = f.readlines()
+        cat_columns = [line.rstrip('\n') for line in lines]
+
+    index_list = []
+    for i, c in enumerate(cat_columns):
+        if c not in unsed_num:
+            index_list.append(i)
+
+    X_cat_new = X_cat[:, index_list]
+    return X_cat_new
